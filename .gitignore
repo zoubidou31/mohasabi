@@ -5,6 +5,8 @@ release/update-source/
 .cache/
 frontend/node_modules/
 frontend/dist/
+frontend/*.tsbuildinfo
+src/Factur.Api/wwwroot/
 **/bin/
 **/obj/
 
