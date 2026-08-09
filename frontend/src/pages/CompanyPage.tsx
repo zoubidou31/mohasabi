@@ -758,11 +758,13 @@ export default function CompanyPage() {
               <Typography sx={{ fontWeight: 500, fontSize: 13, color: 'text.secondary' }}>
                 {t('appSubtitle')}
               </Typography>
+              {appVersion && (
               <Chip
-                label={`${t('about.version')} ${appVersion || '1.0.0'}`}
+                label={`${t('about.version')} ${appVersion}`}
                 size="small"
                 sx={{ mt: 0.5, fontWeight: 600, bgcolor: 'primary.light', color: 'primary.main' }}
               />
+            )}
               <Divider flexItem sx={{ my: 1 }} />
               <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Factur.Api\Factur.Api.csproj" />
+    <ProjectReference Include="..\..\src\Factur.Infrastructure\Factur.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

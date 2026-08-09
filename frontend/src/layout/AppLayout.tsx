@@ -49,7 +49,8 @@ export default function AppLayout() {
   const [langAnchor, setLangAnchor] = useState<HTMLElement | null>(null);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
 
-  const { updateAvailable, currentVersion, setUpdate } = useUpdateStore();
+  const { updateAvailable, setUpdate } = useUpdateStore();
+  const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +80,23 @@ export default function AppLayout() {
       cancelled = true;
     };
   }, [setUpdate]);
+
+  // La version affichée dans le footer provient toujours de l'API locale
+  // (/api/version, renvoyée depuis l'assemblage) — jamais d'une constante codée en dur.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ version: string }>('/version')
+      .then(({ data }) => {
+        if (!cancelled && data?.version) setAppVersion(data.version);
+      })
+      .catch(() => {
+        // Serveur indisponible : le footer indiquera simplement "Mohasabi".
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const item = navItems.find((it) => location.pathname.startsWith(it.path));
@@ -326,7 +344,7 @@ export default function AppLayout() {
           flexGrow: 1,
           width: '100%',
           pt: '96px',
-          pb: 5,
+          pb: 7,
           px: { xs: 2, sm: 3, md: 4 },
           maxWidth: '1600px',
           mx: 'auto',
@@ -335,20 +353,27 @@ export default function AppLayout() {
         <Outlet />
       </Box>
 
-      {/* Version footer */}
+      {/* Version footer — fixed at the bottom of the viewport, visible on every
+          page without overlapping page content (main padding clears its height). */}
       <Box
         component="footer"
         sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          width: '100%',
           py: 1.5,
           px: 2,
           textAlign: 'center',
           borderTop: '1px solid',
           borderColor: 'divider',
+          backgroundColor: 'background.paper',
           color: 'text.secondary',
           fontSize: 12,
+          zIndex: (theme) => theme.zIndex.appBar - 1,
         }}
       >
-        {`Mohasabi v${currentVersion ?? '1.0.0'}`}
+        {appVersion ? `Mohasabi v${appVersion}` : 'Mohasabi'}
       </Box>
     </Box>
   );

@@ -9,7 +9,11 @@ public static class FormulaSanitizer
 {
     private static readonly char[] FormulaPrefixes = ['=', '+', '-', '@', '\t', '\r'];
 
-    /// <summary>Neutralise une valeur chaîne pour un export Excel/CSV.</summary>
+    /// <summary>Neutralise une valeur chaîne pour un export Excel/CSV.
+    /// Neutralise si le premier caractère est = + - @ \t \r (injection de formule).
+    /// Les espaces précédents protègent naturellement la valeur : une cellule
+    /// commençant par un espace n'est jamais interprétée comme une formule.
+    /// </summary>
     public static string Sanitize(string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -17,8 +21,7 @@ public static class FormulaSanitizer
             return string.Empty;
         }
 
-        var trimmed = value.TrimStart();
-        if (trimmed.Length > 0 && FormulaPrefixes.Contains(trimmed[0]))
+        if (FormulaPrefixes.Contains(value[0]))
         {
             return "'" + value;
         }
@@ -27,19 +30,25 @@ public static class FormulaSanitizer
     }
 
     /// <summary>Neutralise une valeur objet (string, DateTime, decimal, etc.) pour un export.</summary>
-    public static object? Sanitize(object? value)
+    public static object Sanitize(object? value)
     {
         if (value is string s)
         {
             return Sanitize(s);
         }
+
+        if (value is null)
+        {
+            return string.Empty;
+        }
+
         return value;
     }
 
     /// <summary>Applique la neutralisation à une liste de valeurs (ligne d'export).</summary>
-    public static IReadOnlyList<object?> SanitizeRow(IReadOnlyList<object?> row)
+    public static IReadOnlyList<object> SanitizeRow(IReadOnlyList<object?> row)
     {
-        var sanitized = new object?[row.Count];
+        var sanitized = new object[row.Count];
         for (var i = 0; i < row.Count; i++)
         {
             sanitized[i] = Sanitize(row[i]);
