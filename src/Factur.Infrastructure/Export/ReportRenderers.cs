@@ -160,18 +160,18 @@ public static class ReportExcelRenderer
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add(report.Title.Length > 24 ? report.Title[..24] : report.Title);
 
-        ws.Cell(1, 1).Value = report.Title;
+        ws.Cell(1, 1).Value = FormulaSanitizer.Sanitize(report.Title);
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 15;
         ws.Cell(1, 1).Style.Font.FontColor = XLColor.FromHtml(Accent);
 
         if (!string.IsNullOrWhiteSpace(report.Subtitle))
         {
-            ws.Cell(2, 1).Value = report.Subtitle;
+            ws.Cell(2, 1).Value = FormulaSanitizer.Sanitize(report.Subtitle);
             ws.Cell(2, 1).Style.Font.FontSize = 10;
         }
 
-        ws.Cell(1, 6).Value = company.Name;
+        ws.Cell(1, 6).Value = FormulaSanitizer.Sanitize(company.Name);
         ws.Cell(1, 6).Style.Font.Bold = true;
         ws.Cell(1, 6).Style.Font.FontSize = 10;
 
@@ -181,10 +181,10 @@ public static class ReportExcelRenderer
             var col = 1;
             foreach (var (label, value) in report.Summary)
             {
-                ws.Cell(startRow, col).Value = label;
+                ws.Cell(startRow, col).Value = FormulaSanitizer.Sanitize(label);
                 ws.Cell(startRow, col).Style.Font.FontSize = 8;
                 ws.Cell(startRow, col).Style.Font.FontColor = XLColor.FromHtml("#64748B");
-                ws.Cell(startRow + 1, col).Value = value;
+                ws.Cell(startRow + 1, col).Value = FormulaSanitizer.Sanitize(value);
                 ws.Cell(startRow + 1, col).Style.Font.FontSize = 10;
                 ws.Cell(startRow + 1, col).Style.Font.Bold = true;
                 col++;
@@ -196,7 +196,7 @@ public static class ReportExcelRenderer
         for (var i = 0; i < report.Headers.Count; i++)
         {
             var cell = ws.Cell(startRow, i + 1);
-            cell.Value = report.Headers[i];
+            cell.Value = FormulaSanitizer.Sanitize(report.Headers[i]);
             cell.Style.Font.Bold = true;
             cell.Style.Font.FontSize = 9;
             cell.Style.Font.FontColor = XLColor.White;
@@ -222,7 +222,7 @@ public static class ReportExcelRenderer
                 }
                 else
                 {
-                    cell.Value = value?.ToString() ?? string.Empty;
+                    cell.Value = FormulaSanitizer.Sanitize(value?.ToString() ?? string.Empty);
                 }
 
                 cell.Style.Font.FontSize = 9;
@@ -233,7 +233,7 @@ public static class ReportExcelRenderer
 
         if (report.Totals.Count > 0)
         {
-            ws.Cell(row, 1).Value = strings.TotalLabel;
+            ws.Cell(row, 1).Value = FormulaSanitizer.Sanitize(strings.TotalLabel);
             ws.Cell(row, 1).Style.Font.Bold = true;
             for (var i = 1; i < report.Totals.Count; i++)
             {

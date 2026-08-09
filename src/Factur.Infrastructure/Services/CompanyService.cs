@@ -99,7 +99,7 @@ public class CompanyService : ICompanyService
         var parts = dataUrl.Split(',');
         if (parts.Length != 2)
         {
-            throw new InvalidOperationException("Données d'image invalides.");
+             throw new BadRequestException("Données d'image invalides.");
         }
 
         var mimeType = parts[0].Split(':')[1].Split(';')[0];
@@ -107,10 +107,31 @@ public class CompanyService : ICompanyService
         {
             "image/png" => "png",
             "image/jpeg" or "image/jpg" => "jpg",
-            _ => "png",
+            _ => throw new BadRequestException("Type d'image non supporté : uniquement PNG et JPEG."),
         };
 
         var bytes = Convert.FromBase64String(parts[1]);
+
+        // Limite de taille pour éviter un déni de service par upload volumineux.
+        const int maxBytes = 2 * 1024 * 1024;
+        if (bytes.Length > maxBytes)
+        {
+            throw new BadRequestException("L'image est trop volumineuse (maximum 2 Mo).");
+        }
+
+        // Vérifie les magic bytes pour s'assurer que le contenu correspond au type déclaré.
+        ReadOnlySpan<byte> pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        if (mimeType == "image/png" && !bytes.AsSpan().StartsWith(pngSig))
+        {
+            throw new BadRequestException("Le contenu du fichier image est invalide (signature PNG incorrecte).");
+        }
+
+        ReadOnlySpan<byte> jpegSig = [0xFF, 0xD8, 0xFF];
+        if ((mimeType == "image/jpeg" || mimeType == "image/jpg") && !bytes.AsSpan().StartsWith(jpegSig))
+        {
+            throw new BadRequestException("Le contenu du fichier image est invalide (signature JPEG incorrecte).");
+        }
+
         var uploadsDir = StoragePaths.ResolveUploads(_storage.Value);
         Directory.CreateDirectory(uploadsDir);
 

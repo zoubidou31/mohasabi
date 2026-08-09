@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -11,9 +12,11 @@ internal sealed class MainForm : Form
 {
     private readonly WebView2 _webView = new();
     private readonly Label _loading;
+    private readonly string _apiToken;
 
-    public MainForm(string iconPath)
+    public MainForm(string iconPath, string apiToken)
     {
+        _apiToken = apiToken;
         Text = "Mohasabi";
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1280, 820);
@@ -98,7 +101,16 @@ internal sealed class MainForm : Form
         {
             var environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
             await _webView.EnsureCoreWebView2Async(environment);
-            _webView.CoreWebView2?.Navigate(url);
+
+            if (_webView.CoreWebView2 != null)
+            {
+                // Expose le jeton d'authentification de l'API locale au code front-end,
+                // qui l'ajoute à chaque requête (en-tête Authorization). Le jeton reste
+                // valable pour toutes les navigations futures de la fenêtre.
+                await _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+                    $"window.__MOHASABI_API_TOKEN__ = {JsonSerializer.Serialize(_apiToken)};");
+                _webView.CoreWebView2.Navigate(url);
+            }
         }
         catch (Exception ex)
         {

@@ -1,0 +1,23 @@
+version: 2
+
+updates:
+  # Mise à jour des dépendances GitHub Actions utilisées dans les workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 4
+    allow:
+      - dependency-type: "development"
+    reviewers:
+      - "zoubidou31"
+
+  # Mise à jour des dépendances npm du frontend.
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    npm-update-method: "pin-and-installer"
+    open-pull-requests-limit: 8
+    reviewers:
+      - "zoubidou31"

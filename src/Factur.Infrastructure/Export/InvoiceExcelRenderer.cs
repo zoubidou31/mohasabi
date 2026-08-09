@@ -52,23 +52,20 @@ public static class InvoiceExcelRenderer
         }
 
         // ---- société
-        ws.Cell("C1").Value = doc.Company.Name;
+        ws.Cell("C1").Value = FormulaSanitizer.Sanitize(doc.Company.Name);
         ws.Cell("C1").Style.Font.Bold = true;
         ws.Cell("C1").Style.Font.FontSize = 16;
         ws.Cell("C1").Style.Font.FontColor = XLColor.FromHtml(Accent);
 
-        ws.Cell("C2").Value = CompanyContactLine(doc.Company);
+        ws.Cell("C2").Value = FormulaSanitizer.Sanitize(CompanyContactLine(doc.Company));
         ws.Cell("C2").Style.Font.FontSize = 8;
         ws.Cell("C2").Style.Font.FontColor = XLColor.FromHtml(MutedColor);
 
-        ws.Cell("C3").Value = CompanyFiscalLine(doc.Company);
+        ws.Cell("C3").Value = FormulaSanitizer.Sanitize(CompanyFiscalLine(doc.Company));
         ws.Cell("C3").Style.Font.FontSize = 8;
         ws.Cell("C3").Style.Font.FontColor = XLColor.FromHtml(MutedColor);
 
-        ws.Cell("C4").Value = CompanyBankLine(doc.Company);
-        ws.Cell("C4").Style.Font.FontSize = 8;
-        ws.Cell("C4").Style.Font.FontColor = XLColor.FromHtml(MutedColor);
-
+        ws.Cell("C4").Value = FormulaSanitizer.Sanitize(CompanyBankLine(doc.Company));
         // ---- titre + métadonnées
         ws.Range("G1:H1").Merge();
         ws.Cell("G1").Value = doc.Title;
@@ -81,20 +78,20 @@ public static class InvoiceExcelRenderer
 
         var meta = new[]
         {
-            (s.Number, doc.InvoiceNumber),
+            (s.Number, FormulaSanitizer.Sanitize(doc.InvoiceNumber)),
             (s.IssueDate, doc.IssueDate.ToString("dd/MM/yyyy", Fr)),
             (s.DueDate, doc.DueDate?.ToString("dd/MM/yyyy", Fr) ?? "—"),
-            (s.PaymentMethodLabel, doc.PaymentMethod),
+            (s.PaymentMethodLabel, FormulaSanitizer.Sanitize(doc.PaymentMethod)),
         }.ToList();
         if (!string.IsNullOrWhiteSpace(doc.OrderReference))
         {
-            meta.Add((s.OrderReference, doc.OrderReference));
+            meta.Add((s.OrderReference, FormulaSanitizer.Sanitize(doc.OrderReference)));
         }
 
         for (var i = 0; i < meta.Count; i++)
         {
             var metaRow = 2 + i;
-            ws.Cell(metaRow, 7).Value = meta[i].Item1;
+            ws.Cell(metaRow, 7).Value = FormulaSanitizer.Sanitize(meta[i].Item1);
             ws.Cell(metaRow, 7).Style.Font.FontSize = 8;
             ws.Cell(metaRow, 7).Style.Font.FontColor = XLColor.FromHtml(MutedColor);
             ws.Cell(metaRow, 8).Value = meta[i].Item2;
@@ -104,22 +101,22 @@ public static class InvoiceExcelRenderer
         }
 
         var statusRow = 2 + meta.Count;
-        ws.Cell(statusRow, 7).Value = s.StatusLabel;
+        ws.Cell(statusRow, 7).Value = FormulaSanitizer.Sanitize(s.StatusLabel);
         ws.Cell(statusRow, 7).Style.Font.FontSize = 8;
         ws.Cell(statusRow, 7).Style.Font.FontColor = XLColor.FromHtml(MutedColor);
-        ws.Cell(statusRow, 8).Value = doc.Status;
+        ws.Cell(statusRow, 8).Value = FormulaSanitizer.Sanitize(doc.Status);
         ws.Cell(statusRow, 8).Style.Font.Bold = true;
         ws.Cell(statusRow, 8).Style.Font.FontSize = 9;
         ws.Cell(statusRow, 8).Style.Font.FontColor = XLColor.FromHtml(doc.StatusColorHex);
         ws.Cell(statusRow, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
 
         // ---- client
-        ws.Cell("A8").Value = s.BillTo;
+        ws.Cell("A8").Value = FormulaSanitizer.Sanitize(s.BillTo);
         ws.Cell("A8").Style.Font.Bold = true;
         ws.Cell("A8").Style.Font.FontSize = 8;
         ws.Cell("A8").Style.Font.FontColor = XLColor.FromHtml(Accent);
 
-        ws.Cell("A9").Value = doc.Client.Name;
+        ws.Cell("A9").Value = FormulaSanitizer.Sanitize(doc.Client.Name);
         ws.Cell("A9").Style.Font.Bold = true;
         ws.Cell("A9").Style.Font.FontSize = 12;
 
@@ -141,7 +138,7 @@ public static class InvoiceExcelRenderer
 
         for (var i = 0; i < clientLines.Count; i++)
         {
-            ws.Cell(10 + i, 1).Value = clientLines[i];
+            ws.Cell(10 + i, 1).Value = FormulaSanitizer.Sanitize(clientLines[i]);
             ws.Cell(10 + i, 1).Style.Font.FontSize = 8;
             ws.Cell(10 + i, 1).Style.Font.FontColor = XLColor.FromHtml(MutedColor);
         }
@@ -161,7 +158,7 @@ public static class InvoiceExcelRenderer
         for (var i = 0; i < headers.Length; i++)
         {
             var cell = ws.Cell(headerRow, i + 1);
-            cell.Value = headers[i];
+            cell.Value = FormulaSanitizer.Sanitize(headers[i]);
             cell.Style.Font.Bold = true;
             cell.Style.Font.FontSize = 9;
             cell.Style.Font.FontColor = XLColor.White;
@@ -178,11 +175,11 @@ public static class InvoiceExcelRenderer
         foreach (var line in doc.Lines)
         {
             ws.Cell(row, 1).Value = line.Index;
-            ws.Cell(row, 2).Value = line.Reference;
-            ws.Cell(row, 3).Value = line.Designation;
+            ws.Cell(row, 2).Value = FormulaSanitizer.Sanitize(line.Reference);
+            ws.Cell(row, 3).Value = FormulaSanitizer.Sanitize(line.Designation);
             ws.Cell(row, 4).Value = (double)line.Quantity;
             ws.Cell(row, 5).Value = (double)line.UnitPriceHT;
-            ws.Cell(row, 6).Value = line.VatLabel;
+            ws.Cell(row, 6).Value = FormulaSanitizer.Sanitize(line.VatLabel);
             ws.Cell(row, 7).Value = (double)line.TotalHT;
             ws.Cell(row, 8).Value = (double)line.TotalTTC;
 
@@ -213,21 +210,21 @@ public static class InvoiceExcelRenderer
 
         // ---- récap TVA + totaux
         var tvaStart = row + 1;
-        ws.Cell(tvaStart, 1).Value = s.VatSummary;
+        ws.Cell(tvaStart, 1).Value = FormulaSanitizer.Sanitize(s.VatSummary);
         ws.Cell(tvaStart, 1).Style.Font.Bold = true;
         ws.Cell(tvaStart, 1).Style.Font.FontSize = 8;
         ws.Cell(tvaStart, 1).Style.Font.FontColor = XLColor.FromHtml(Accent);
 
         var tvaRows = doc.VatBreakdowns.Count > 0
-            ? doc.VatBreakdowns.Select(b => (b.Label, b.BaseHT, b.VatAmount, b.Ttc)).ToList()
-            : new List<(string, decimal, decimal, decimal)> { ("—", doc.Totals.TotalHT, doc.Totals.TotalTVA, doc.Totals.TotalTTC) };
+            ? doc.VatBreakdowns.Select(b => (FormulaSanitizer.Sanitize(b.Label), b.BaseHT, b.VatAmount, b.Ttc)).ToList()
+            : new List<(string, decimal, decimal, decimal)> { (FormulaSanitizer.Sanitize("—"), doc.Totals.TotalHT, doc.Totals.TotalTVA, doc.Totals.TotalTTC) };
 
         var tvh = tvaStart + 1;
         var tvaHeaders = new[] { s.Rate, s.Base, s.VatAmount, s.Ttc };
         for (var i = 0; i < tvaHeaders.Length; i++)
         {
             var cell = ws.Cell(tvh, i + 1);
-            cell.Value = tvaHeaders[i];
+            cell.Value = FormulaSanitizer.Sanitize(tvaHeaders[i]);
             cell.Style.Font.Bold = true;
             cell.Style.Font.FontSize = 8;
             cell.Style.Font.FontColor = XLColor.White;
@@ -259,32 +256,32 @@ public static class InvoiceExcelRenderer
         var totalStart = tr + 1;
         var totalList = new List<(string Label, decimal Value, bool Negative, bool Bold, bool AccentFill)>
         {
-            (s.Subtotal, doc.Totals.TotalHT, false, false, false),
+            (FormulaSanitizer.Sanitize(s.Subtotal), doc.Totals.TotalHT, false, false, false),
         };
         if (doc.Totals.RemiseAmount > 0m)
         {
             var label = string.IsNullOrWhiteSpace(doc.Totals.RemiseLabel)
                 ? s.DiscountDetail
                 : $"{s.DiscountDetail} ({doc.Totals.RemiseLabel})";
-            totalList.Add((label, doc.Totals.RemiseAmount, true, false, false));
+            totalList.Add((FormulaSanitizer.Sanitize(label), doc.Totals.RemiseAmount, true, false, false));
         }
 
-        totalList.Add((s.TotalVat, doc.Totals.TotalTVA, false, false, false));
+        totalList.Add((FormulaSanitizer.Sanitize(s.TotalVat), doc.Totals.TotalTVA, false, false, false));
         if (doc.Totals.FraisPort is > 0m)
         {
-            totalList.Add((doc.Totals.FraisPortLabel ?? s.Shipping, doc.Totals.FraisPort.Value, false, false, false));
+            totalList.Add((FormulaSanitizer.Sanitize(doc.Totals.FraisPortLabel ?? s.Shipping), doc.Totals.FraisPort.Value, false, false, false));
         }
 
         if (doc.Totals.AutresFrais is > 0m)
         {
-            totalList.Add((doc.Totals.AutresFraisLabel ?? s.OtherFees, doc.Totals.AutresFrais.Value, false, false, false));
+            totalList.Add((FormulaSanitizer.Sanitize(doc.Totals.AutresFraisLabel ?? s.OtherFees), doc.Totals.AutresFrais.Value, false, false, false));
         }
 
-        totalList.Add((s.TotalTTC, doc.Totals.TotalTTC, false, true, true));
+        totalList.Add((FormulaSanitizer.Sanitize(s.TotalTTC), doc.Totals.TotalTTC, false, true, true));
         if (doc.Totals.MontantPaye > 0m)
         {
-            totalList.Add((s.AmountPaid, doc.Totals.MontantPaye, false, false, false));
-            totalList.Add((s.BalanceDue, doc.Totals.SoldeRestant, false, true, false));
+            totalList.Add((FormulaSanitizer.Sanitize(s.AmountPaid), doc.Totals.MontantPaye, false, false, false));
+            totalList.Add((FormulaSanitizer.Sanitize(s.BalanceDue), doc.Totals.SoldeRestant, false, true, false));
         }
 
         var tt = totalStart;
@@ -315,7 +312,7 @@ public static class InvoiceExcelRenderer
         if (!string.IsNullOrWhiteSpace(doc.AmountInWords))
         {
             tt += 1;
-            ws.Cell(tt, 1).Value = $"{s.AmountInWordsLabel} {doc.AmountInWords}";
+            ws.Cell(tt, 1).Value = $"{s.AmountInWordsLabel} {FormulaSanitizer.Sanitize(doc.AmountInWords)}";
             ws.Cell(tt, 1).Style.Font.FontSize = 9;
             ws.Cell(tt, 1).Style.Font.Italic = true;
             ws.Cell(tt, 1).Style.Alignment.WrapText = true;
@@ -327,14 +324,14 @@ public static class InvoiceExcelRenderer
         if (hasNotes)
         {
             tt += 1;
-            ws.Cell(tt, 1).Value = s.ConditionsAndMentions;
+            ws.Cell(tt, 1).Value = FormulaSanitizer.Sanitize(s.ConditionsAndMentions);
             ws.Cell(tt, 1).Style.Font.Bold = true;
             ws.Cell(tt, 1).Style.Font.FontSize = 8;
             ws.Cell(tt, 1).Style.Font.FontColor = XLColor.FromHtml(Accent);
             tt++;
             if (doc.PaymentConditions is { Length: > 0 })
             {
-                ws.Cell(tt, 1).Value = $"{s.PaymentConditions} : {doc.PaymentConditions}";
+                ws.Cell(tt, 1).Value = $"{s.PaymentConditions} : {FormulaSanitizer.Sanitize(doc.PaymentConditions)}";
                 ws.Cell(tt, 1).Style.Font.FontSize = 8;
                 ws.Cell(tt, 1).Style.Alignment.WrapText = true;
                 tt++;
@@ -342,7 +339,7 @@ public static class InvoiceExcelRenderer
 
             if (doc.Penalties is { Length: > 0 })
             {
-                ws.Cell(tt, 1).Value = $"{s.LatePenalties} : {doc.Penalties}";
+                ws.Cell(tt, 1).Value = $"{s.LatePenalties} : {FormulaSanitizer.Sanitize(doc.Penalties)}";
                 ws.Cell(tt, 1).Style.Font.FontSize = 8;
                 ws.Cell(tt, 1).Style.Alignment.WrapText = true;
                 tt++;
@@ -350,7 +347,7 @@ public static class InvoiceExcelRenderer
 
             if (doc.MentionsSpecifiques is { Length: > 0 })
             {
-                ws.Cell(tt, 1).Value = doc.MentionsSpecifiques;
+                ws.Cell(tt, 1).Value = FormulaSanitizer.Sanitize(doc.MentionsSpecifiques);
                 ws.Cell(tt, 1).Style.Font.FontSize = 8;
                 ws.Cell(tt, 1).Style.Alignment.WrapText = true;
                 tt++;
@@ -358,7 +355,7 @@ public static class InvoiceExcelRenderer
 
             if (doc.Notes is { Length: > 0 })
             {
-                ws.Cell(tt, 1).Value = $"{s.Notes} : {doc.Notes}";
+                ws.Cell(tt, 1).Value = $"{s.Notes} : {FormulaSanitizer.Sanitize(doc.Notes)}";
                 ws.Cell(tt, 1).Style.Font.FontSize = 8;
                 ws.Cell(tt, 1).Style.Alignment.WrapText = true;
             }

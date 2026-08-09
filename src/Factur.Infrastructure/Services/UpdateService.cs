@@ -111,7 +111,35 @@ public class UpdateService : IUpdateService
         }
     }
 
-    public async Task<string> DownloadInstallerAsync(string downloadUrl, string? expectedSha256 = null, CancellationToken ct = default)
+    /// <summary>Autorise les URLs de mise à jour :
+    /// - loopback (tests/développement local) ;
+    /// - HTTPS vers github.com, *.github.com, *.githubusercontent.com (production).
+    /// </summary>
+    public static bool IsAllowedUpdateUrl(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.IsLoopback)
+        {
+            return true;
+        }
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var host = uri.Host.ToLowerInvariant();
+        return host == "github.com"
+            || host == "www.github.com"
+            || host.EndsWith(".github.com", StringComparison.Ordinal)
+            || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal);
+    }
+
+    public async Task<string> DownloadInstallerAsync(string downloadUrl, string expectedSha256, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
@@ -120,7 +148,12 @@ public class UpdateService : IUpdateService
 
         if (!IsAllowedUpdateUrl(downloadUrl))
         {
-            throw new InvalidOperationException("URL de téléchargement refusée : HTTPS requis (hôte local autorisé).");
+            throw new InvalidOperationException("URL de téléchargement refusée : HTTPS GitHub requis.");
+        }
+
+        if (string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            throw new InvalidOperationException("Empreinte SHA-256 attendue manquante : intégrité non vérifiable.");
         }
 
         var dir = Path.Combine(Path.GetTempPath(), "MohasabiUpdate");
@@ -143,34 +176,15 @@ public class UpdateService : IUpdateService
             await source.CopyToAsync(output, ct);
         }
 
-        if (!string.IsNullOrWhiteSpace(expectedSha256))
+        var actualSha256 = await ComputeSha256Async(target, ct);
+        if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
         {
-            var actualSha256 = await ComputeSha256Async(target, ct);
-            if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
-            {
-                File.Delete(target);
-                throw new InvalidOperationException(
-                    "Intégrité du fichier de mise à jour invalide : l'empreinte SHA-256 ne correspond pas au manifest.");
-            }
+            File.Delete(target);
+            throw new InvalidOperationException(
+                "Intégrité du fichier de mise à jour invalide : l'empreinte SHA-256 ne correspond pas au manifest.");
         }
 
         return target;
-    }
-
-    /// <summary>Autorise HTTPS partout, et HTTP uniquement vers un hôte local (tests et développement).</summary>
-    public static bool IsAllowedUpdateUrl(string? url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
-
-        if (uri.IsLoopback)
-        {
-            return true;
-        }
-
-        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<string> ComputeSha256Async(string filePath, CancellationToken ct)

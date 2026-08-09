@@ -144,8 +144,9 @@ public class ExportService : IExportService
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    private static string Csv(string? value) =>
-        value is null ? string.Empty : $"\"{value.Replace("\"", "\"\"")}\"";
+    private static string Csv(string? value) => value is null
+        ? string.Empty
+        : FormulaSanitizer.Sanitize($"\"{value.Replace("\"", "\"\"")}\"");
 
     public async Task<byte[]> ExportInvoicesExcelAsync(IEnumerable<InvoiceSummaryDto> invoices, string? lang = null, CancellationToken ct = default)
     {

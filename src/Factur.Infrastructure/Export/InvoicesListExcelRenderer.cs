@@ -22,11 +22,11 @@ public static class InvoicesListExcelRenderer
         var ws = wb.Worksheets.Add("Factures");
 
         // ---- titre
-        ws.Cell(1, 1).Value = s.Facture;
+        ws.Cell(1, 1).Value = FormulaSanitizer.Sanitize(s.Facture);
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 16;
         ws.Cell(1, 1).Style.Font.FontColor = XLColor.FromHtml(Accent);
-        ws.Cell(1, 3).Value = company.Name;
+        ws.Cell(1, 3).Value = FormulaSanitizer.Sanitize(company.Name);
         ws.Cell(1, 3).Style.Font.Bold = true;
         ws.Cell(1, 3).Style.Font.FontSize = 11;
         ws.Cell(2, 1).Value = DateTime.Now.ToString("dd/MM/yyyy HH:mm", Fr);
@@ -41,7 +41,7 @@ public static class InvoicesListExcelRenderer
         for (var i = 0; i < headers.Length; i++)
         {
             var cell = ws.Cell(headerRow, i + 1);
-            cell.Value = headers[i];
+            cell.Value = FormulaSanitizer.Sanitize(headers[i]);
             cell.Style.Font.Bold = true;
             cell.Style.Font.FontSize = 9;
             cell.Style.Font.FontColor = XLColor.White;
@@ -55,12 +55,12 @@ public static class InvoicesListExcelRenderer
         var row = headerRow + 1;
         foreach (var inv in list)
         {
-            ws.Cell(row, 1).Value = inv.InvoiceNumber;
-            ws.Cell(row, 2).Value = inv.ClientName;
+            ws.Cell(row, 1).Value = FormulaSanitizer.Sanitize(inv.InvoiceNumber);
+            ws.Cell(row, 2).Value = FormulaSanitizer.Sanitize(inv.ClientName);
             ws.Cell(row, 3).Value = inv.InvoiceDate.ToString("dd/MM/yyyy", Fr);
             ws.Cell(row, 4).Value = inv.DueDate?.ToString("dd/MM/yyyy", Fr) ?? "—";
-            ws.Cell(row, 5).Value = TypeLabel(inv.InvoiceType, s);
-            ws.Cell(row, 6).Value = s.StatusText(inv.Status);
+            ws.Cell(row, 5).Value = FormulaSanitizer.Sanitize(TypeLabel(inv.InvoiceType, s));
+            ws.Cell(row, 6).Value = FormulaSanitizer.Sanitize(s.StatusText(inv.Status));
             ws.Cell(row, 7).Value = (double)inv.TotalHT;
             ws.Cell(row, 8).Value = (double)inv.TotalTVA;
             ws.Cell(row, 9).Value = (double)inv.TotalTTC;
@@ -87,7 +87,7 @@ public static class InvoicesListExcelRenderer
         if (list.Count > 0)
         {
             var totalRow = row + 1;
-            ws.Cell(totalRow, 2).Value = s.GrandTotal;
+            ws.Cell(totalRow, 2).Value = FormulaSanitizer.Sanitize(s.GrandTotal);
             ws.Cell(totalRow, 2).Style.Font.Bold = true;
             ws.Cell(totalRow, 2).Style.Font.FontSize = 10;
 

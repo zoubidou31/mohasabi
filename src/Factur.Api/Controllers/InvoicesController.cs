@@ -148,7 +148,7 @@ public class InvoicesController : ControllerBase
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"factures-{DateTime.UtcNow:yyyyMMdd}.xlsx");
     }
 
-    [HttpPost("{id:guid}/send-email")]
+     [HttpPost("{id:guid}/send-email")]
     public async Task<IActionResult> SendEmail(Guid id, [FromQuery] string to, [FromQuery] string? message, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(to))
@@ -156,8 +156,26 @@ public class InvoicesController : ControllerBase
             return BadRequest(new { message = "L'adresse e-mail du destinataire est obligatoire." });
         }
 
+        if (!IsValidEmail(to))
+        {
+            return BadRequest(new { message = "L'adresse e-mail du destinataire est invalide." });
+        }
+
         await _emailService.SendInvoiceAsync(id, to, message, ct);
         return Ok(new { message = "Facture envoyée par e-mail." });
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return !string.IsNullOrWhiteSpace(addr.Address) && email.Contains('@');
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<string> GetFileNameAsync(Guid id, CancellationToken ct)

@@ -49,8 +49,14 @@ try
 
     builder.Services.AddCors(options =>
     {
+        // Application locale monoposte : seules les origines loopback (l'app elle-même
+        // et les outils de développement locaux) sont autorisées. Combiné au jeton
+        // éphémère, cela bloque tout appel cross-origin provenant d'une page web.
         options.AddPolicy("Frontend", policy =>
-            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+            policy.SetIsOriginAllowed(origin =>
+                Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.IsLoopback)
+                .AllowAnyHeader()
+                .AllowAnyMethod());
     });
 
     builder.Services.AddApplication();
@@ -60,6 +66,7 @@ try
 
     // ---------------------------------------------------------------- Pipeline
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseMiddleware<LocalTokenMiddleware>();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
@@ -69,6 +76,7 @@ try
     }
 
     app.UseCors("Frontend");
+    app.UseMiddleware<RateLimitMiddleware>();
 
     app.UseDefaultFiles();
     app.UseStaticFiles();

@@ -1,5 +1,4 @@
 using System.Reflection;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Factur.Api.Controllers;
@@ -10,7 +9,6 @@ public class VersionController : ControllerBase
 {
     /// <summary>Version de l'application installée.</summary>
     [HttpGet]
-    [AllowAnonymous]
     public ActionResult<object> Get()
     {
         var info = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion

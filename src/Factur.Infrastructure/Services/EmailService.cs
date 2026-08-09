@@ -1,3 +1,4 @@
+using Factur.Application.Common.Exceptions;
 using Factur.Application.DTOs;
 using Factur.Application.Interfaces;
 using Factur.Domain.Entities;
@@ -53,7 +54,7 @@ public class EmailService : IEmailService
 
         if (string.IsNullOrWhiteSpace(settings.Host) || string.IsNullOrWhiteSpace(settings.FromEmail))
         {
-            throw new InvalidOperationException("Le serveur SMTP n'est pas configuré. Renseignez les paramètres e-mail dans appsettings.json.");
+            throw new BadRequestException("Le serveur SMTP n'est pas configuré. Renseignez les paramètres e-mail dans appsettings.json.");
         }
 
         var email = new MimeMessage

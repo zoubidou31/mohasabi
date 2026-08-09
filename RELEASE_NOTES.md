@@ -1,5 +1,11 @@
 # Notes de version — Mohasabi
 
+## 1.0.1 (2026-08-09)
+
+- Affichage de la version de l'application dans un pied de page (visible sur toutes les pages).
+- Durcissement du système de mise à jour : vérification de l'intégrité du fichier téléchargé (empreinte SHA-256 publiée dans le manifest) avant installation, URLs restreintes à HTTPS, nettoyage de l'installateur après mise à jour.
+- Mises à jour servies depuis GitHub Releases (https) : la source officielle est désormais `zoubidou31/mohasabi`.
+
 ## 1.0.0 (2026-08-09)
 
 Version initiale publiée.

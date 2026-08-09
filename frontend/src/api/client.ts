@@ -5,6 +5,14 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+api.interceptors.request.use((config) => {
+  const token = (window as unknown as { __MOHASABI_API_TOKEN__?: string }).__MOHASABI_API_TOKEN__;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {

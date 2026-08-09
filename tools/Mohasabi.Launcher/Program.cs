@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -24,6 +25,7 @@ internal static class Program
     private static System.Windows.Forms.Timer? _watchTimer;
     private static Process? _api;
     private static int _port;
+    private static string _apiToken = "";
     private static string _dataDir = "";
     private static string _markerPath = "";
     private static string _apiExe = "";
@@ -92,7 +94,12 @@ internal static class Program
         Directory.CreateDirectory(Path.Combine(appData, "logs"));
         Directory.CreateDirectory(Path.Combine(appData, "webview2"));
 
-        _form = new MainForm(Path.Combine(exeDir, "mohasabi.ico"));
+        // Jeton d'authentification éphémère : régénéré à chaque session, il protège
+        // l'API locale contre toute requête provenant d'un autre processus local ou
+        // d'une page web (protection CSRF / appels externes).
+        _apiToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
+        _form = new MainForm(Path.Combine(exeDir, "mohasabi.ico"), _apiToken);
         _form.FormClosing += (_, _) => StopApi();
 
         _port = ChoosePort();
@@ -187,6 +194,7 @@ internal static class Program
 
         psi.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         psi.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
+        psi.Environment["API_TOKEN"] = _apiToken;
         psi.Environment["ConnectionStrings__DefaultConnection"] = $"Data Source={Path.Combine(_dataDir, "mohasabi.db")}";
         psi.Environment["Storage__UploadsPath"] = Path.Combine(_dataDir, "uploads");
         psi.Environment["Serilog__File__Path"] = Path.Combine(
@@ -223,7 +231,9 @@ internal static class Program
 
             try
             {
-                using var response = Http.GetAsync($"http://127.0.0.1:{port}/api/version").GetAwaiter().GetResult();
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{port}/api/version");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _apiToken);
+                using var response = Http.Send(request);
                 if (response.IsSuccessStatusCode)
                 {
                     _crashCount = 0;

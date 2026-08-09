@@ -38,7 +38,7 @@ public class ExceptionHandlingMiddleware
             BadRequestException => (StatusCodes.Status400BadRequest, exception.Message),
             BusinessRuleException => (StatusCodes.Status400BadRequest, exception.Message),
             ValidationException => (StatusCodes.Status400BadRequest, "Données invalides. Vérifiez les champs du formulaire."),
-            InvalidOperationException => (StatusCodes.Status400BadRequest, exception.Message),
+            InvalidOperationException => (StatusCodes.Status400BadRequest, "L'opération demandée est impossible."),
             _ => (StatusCodes.Status500InternalServerError, "Une erreur interne est survenue. Veuillez réessayer."),
         };
 

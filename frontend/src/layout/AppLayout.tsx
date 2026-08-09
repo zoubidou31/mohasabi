@@ -49,21 +49,26 @@ export default function AppLayout() {
   const [langAnchor, setLangAnchor] = useState<HTMLElement | null>(null);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
 
-  const { updateAvailable, setUpdate } = useUpdateStore();
+  const { updateAvailable, currentVersion, setUpdate } = useUpdateStore();
 
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ success: boolean; updateAvailable: boolean; latestVersion?: string; releaseNotes?: string }>(
-        '/update/check',
-      )
+      .get<{
+        success: boolean;
+        updateAvailable: boolean;
+        currentVersion?: string;
+        latestVersion?: string;
+        releaseNotes?: string;
+      }>('/update/check')
       .then(({ data }) => {
         if (cancelled) return;
-        if (data.success && data.updateAvailable) {
+        if (data.success) {
           setUpdate({
-            updateAvailable: true,
+            updateAvailable: data.updateAvailable,
             latestVersion: data.latestVersion,
             releaseNotes: data.releaseNotes,
+            currentVersion: data.currentVersion,
           });
         }
       })
@@ -328,6 +333,22 @@ export default function AppLayout() {
         }}
       >
         <Outlet />
+      </Box>
+
+      {/* Version footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 1.5,
+          px: 2,
+          textAlign: 'center',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          color: 'text.secondary',
+          fontSize: 12,
+        }}
+      >
+        {`Mohasabi v${currentVersion ?? '1.0.0'}`}
       </Box>
     </Box>
   );

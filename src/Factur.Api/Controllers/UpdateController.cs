@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Factur.Application.DTOs;
 using Factur.Application.Interfaces;
 using Factur.Infrastructure.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Factur.Api.Controllers;
@@ -17,15 +16,16 @@ public class InstallRequest
 public class UpdateController : ControllerBase
 {
     private readonly IUpdateService _updateService;
+    private readonly IWebHostEnvironment _environment;
 
-    public UpdateController(IUpdateService updateService)
+    public UpdateController(IUpdateService updateService, IWebHostEnvironment environment)
     {
         _updateService = updateService;
+        _environment = environment;
     }
 
     /// <summary>Vérifie si une mise à jour est disponible.</summary>
     [HttpGet("check")]
-    [AllowAnonymous]
     public async Task<ActionResult<UpdateCheckResult>> Check(CancellationToken ct)
     {
         return Ok(await _updateService.CheckAsync(ct));
@@ -33,32 +33,36 @@ public class UpdateController : ControllerBase
 
     /// <summary>Télécharge et lance l'installation de la mise à jour, puis quitte l'application.</summary>
     [HttpPost("install")]
-    [AllowAnonymous]
     public async Task<ActionResult> Install([FromBody] InstallRequest? request, CancellationToken ct)
     {
+        // En production, seule l'URL du manifest fait foi : une URL fournie dans la
+        // requête est ignorée (protection contre l'installation d'un binaire arbitraire).
         var check = await _updateService.CheckAsync(ct);
-        var fromManifest = string.IsNullOrWhiteSpace(request?.DownloadUrl);
-        var downloadUrl = fromManifest ? check.DownloadUrl : request!.DownloadUrl;
+        var downloadUrl = _environment.IsProduction()
+            ? check.DownloadUrl
+            : (string.IsNullOrWhiteSpace(request?.DownloadUrl) ? check.DownloadUrl : request!.DownloadUrl);
 
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
             return BadRequest(new { message = "URL de téléchargement manquante." });
         }
 
-        // En production, seule l'URL du manifest fait foi. Une URL fournie par la
-        // requête n'est tolérée que vers un hôte local (tests) car aucune
-        // vérification d'intégrité ne peut alors être garantie.
-        if (!UpdateService.IsAllowedUpdateUrl(downloadUrl) || (!fromManifest && !IsLoopback(downloadUrl)))
+        if (!UpdateService.IsAllowedUpdateUrl(downloadUrl))
         {
-            return BadRequest(new { message = "URL de mise à jour refusée : HTTPS requis (hôte local autorisé)." });
+            return BadRequest(new { message = "URL de mise à jour refusée : HTTPS GitHub requis." });
         }
 
-        var expectedSha256 = fromManifest ? check.Sha256 : null;
+        // L'intégrité du fichier téléchargé doit toujours être vérifiée contre le
+        // manifest ; sans empreinte, aucune installation n'est possible.
+        if (string.IsNullOrWhiteSpace(check.Sha256))
+        {
+            return BadRequest(new { message = "L'empreinte SHA-256 du manifest est absente : mise à jour refusée." });
+        }
 
         string installerPath;
         try
         {
-            installerPath = await _updateService.DownloadInstallerAsync(downloadUrl, expectedSha256, ct);
+            installerPath = await _updateService.DownloadInstallerAsync(downloadUrl, check.Sha256, ct);
         }
         catch (Exception ex)
         {
@@ -107,16 +111,14 @@ public class UpdateController : ControllerBase
         return Ok(new { message = "Mise à jour téléchargée. L'application va redémarrer automatiquement.", restarting = true });
     }
 
-    private static bool IsLoopback(string url)
-        => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.IsLoopback;
-
     private static void MarkUpdatePending()
     {
         try
         {
             var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mohasabi");
             Directory.CreateDirectory(dir);
-            System.IO.File.WriteAllText(Path.Combine(dir, "update-pending"), DateTime.UtcNow.ToString("O"));        }
+            System.IO.File.WriteAllText(Path.Combine(dir, "update-pending"), DateTime.UtcNow.ToString("O"));
+        }
         catch
         {
             // Non bloquant : le launcher retombera sur un redémarrage classique.
