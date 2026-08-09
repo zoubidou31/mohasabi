@@ -46,7 +46,8 @@ function New-UpdateManifest {
         sha256       = $sha256
         releaseNotes = $ReleaseNotes
     }
-    $manifest | ConvertTo-Json | Set-Content -Path "$updateSource\version.json" -Encoding UTF8
+    $json = $manifest | ConvertTo-Json
+    [System.IO.File]::WriteAllText("$updateSource\version.json", $json, (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "  Manifest : $updateSource\version.json"
     Write-Host "  SHA-256  : $sha256"
 }
