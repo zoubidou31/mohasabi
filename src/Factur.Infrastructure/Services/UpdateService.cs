@@ -1,0 +1,195 @@
+using System.Net.Http.Json;
+using System.Reflection;
+using Factur.Application.DTOs;
+using Factur.Application.Interfaces;
+using Microsoft.Extensions.Options;
+
+namespace Factur.Infrastructure.Services;
+
+/// <summary>Options de stockage des fichiers téléversés.</summary>
+public class StorageOptions
+{
+    public string? UploadsPath { get; set; }
+}
+
+/// <summary>Options de mise à jour.</summary>
+public class UpdateOptions
+{
+    public string? ManifestUrl { get; set; }
+}
+
+/// <summary>Résout les chemins de stockage (par défaut : dossier de l'application).</summary>
+public static class StoragePaths
+{
+    public static string ResolveUploads(StorageOptions options)
+        => string.IsNullOrWhiteSpace(options.UploadsPath)
+            ? Path.Combine(AppContext.BaseDirectory, "uploads")
+            : Path.GetFullPath(options.UploadsPath);
+}
+
+/// <summary>Manifest de mise à jour publié (version.json).</summary>
+public class UpdateManifest
+{
+    public string Version { get; init; } = "";
+    public string? DownloadUrl { get; init; }
+    public string? Sha256 { get; init; }
+    public string? ReleaseNotes { get; init; }
+}
+
+/// <summary>Vérifie et prépare les mises à jour de l'application.</summary>
+public class UpdateService : IUpdateService
+{
+    private static readonly HttpClient Http = new()
+    {
+        Timeout = TimeSpan.FromSeconds(60),
+    };
+
+    private readonly IOptions<UpdateOptions> _options;
+
+    public UpdateService(IOptions<UpdateOptions> options)
+    {
+        _options = options;
+    }
+
+    public string CurrentVersion => GetCurrentVersion();
+
+    public async Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
+    {
+        var manifestUrl = _options.Value.ManifestUrl;
+        if (string.IsNullOrWhiteSpace(manifestUrl))
+        {
+            return new UpdateCheckResult
+            {
+                CurrentVersion = CurrentVersion,
+                Success = false,
+                Message = "La vérification des mises à jour n'est pas configurée.",
+            };
+        }
+
+        if (!IsAllowedUpdateUrl(manifestUrl))
+        {
+            return new UpdateCheckResult
+            {
+                CurrentVersion = CurrentVersion,
+                Success = false,
+                Message = "L'adresse de mise à jour n'est pas sécurisée : HTTPS requis (hôte local autorisé).",
+            };
+        }
+
+        try
+        {
+            using var response = await Http.GetAsync(manifestUrl, ct);
+            response.EnsureSuccessStatusCode();
+
+            var manifest = await response.Content.ReadFromJsonAsync<UpdateManifest>(ct)
+                           ?? throw new InvalidOperationException("Le manifest est vide.");
+
+            Version.TryParse(manifest.Version, out var latest);
+            Version.TryParse(CurrentVersion, out var current);
+
+            var updateAvailable = latest is not null && (current is null || latest > current);
+
+            return new UpdateCheckResult
+            {
+                CurrentVersion = CurrentVersion,
+                LatestVersion = manifest.Version,
+                UpdateAvailable = updateAvailable,
+                DownloadUrl = manifest.DownloadUrl,
+                Sha256 = manifest.Sha256,
+                ReleaseNotes = manifest.ReleaseNotes,
+                Success = true,
+            };
+        }
+        catch (Exception ex)
+        {
+            return new UpdateCheckResult
+            {
+                CurrentVersion = CurrentVersion,
+                Success = false,
+                Message = $"Impossible de vérifier les mises à jour : {ex.Message}",
+            };
+        }
+    }
+
+    public async Task<string> DownloadInstallerAsync(string downloadUrl, string? expectedSha256 = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            throw new InvalidOperationException("URL de téléchargement manquante.");
+        }
+
+        if (!IsAllowedUpdateUrl(downloadUrl))
+        {
+            throw new InvalidOperationException("URL de téléchargement refusée : HTTPS requis (hôte local autorisé).");
+        }
+
+        var dir = Path.Combine(Path.GetTempPath(), "MohasabiUpdate");
+        Directory.CreateDirectory(dir);
+
+        var fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
+        if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = $"Mohasabi Setup {CurrentVersion}.exe";
+        }
+
+        var target = Path.Combine(dir, fileName);
+
+        using var response = await Http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var source = await response.Content.ReadAsStreamAsync(ct);
+        await using (var output = File.Create(target))
+        {
+            await source.CopyToAsync(output, ct);
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            var actualSha256 = await ComputeSha256Async(target, ct);
+            if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(target);
+                throw new InvalidOperationException(
+                    "Intégrité du fichier de mise à jour invalide : l'empreinte SHA-256 ne correspond pas au manifest.");
+            }
+        }
+
+        return target;
+    }
+
+    /// <summary>Autorise HTTPS partout, et HTTP uniquement vers un hôte local (tests et développement).</summary>
+    public static bool IsAllowedUpdateUrl(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.IsLoopback)
+        {
+            return true;
+        }
+
+        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<string> ComputeSha256Async(string filePath, CancellationToken ct)
+    {
+        await using var stream = File.OpenRead(filePath);
+        var hash = await System.Security.Cryptography.SHA256.HashDataAsync(stream, ct);
+        return Convert.ToHexString(hash);
+    }
+
+    private static string GetCurrentVersion()
+    {
+        var assembly = Assembly.GetEntryAssembly();
+        var info = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(info))
+        {
+            var plus = info.IndexOf('+');
+            return plus > 0 ? info[..plus] : info;
+        }
+
+        return assembly?.GetName().Version?.ToString(3) ?? "1.0.0";
+    }
+}

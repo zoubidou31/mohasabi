@@ -1,0 +1,31 @@
+services:
+  factur:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: factur
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      # Base de données persistante (volume dédié)
+      - ConnectionStrings__DefaultConnection=Data Source=/data/factur.db
+      # SMTP facultatif (laisser vide pour désactiver l'envoi d'e-mails)
+      - Email__Host=${SMTP_HOST:-}
+      - Email__Port=${SMTP_PORT:-587}
+      - Email__UseSsl=${SMTP_SSL:-false}
+      - Email__User=${SMTP_USER:-}
+      - Email__Password=${SMTP_PASSWORD:-}
+      - Email__FromEmail=${SMTP_FROM:-}
+      - Email__FromName=${SMTP_FROM_NAME:-Mohasabi}
+    volumes:
+      - factur_data:/data
+      - factur_uploads:/app/uploads
+      - factur_logs:/app/logs
+
+volumes:
+  factur_data:
+  factur_uploads:
+  factur_logs:

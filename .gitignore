@@ -1,0 +1,42 @@
+# ── Build outputs ──────────────────────────────────────────────────────────────
+dist/
+release/staging/
+release/update-source/
+.cache/
+frontend/node_modules/
+frontend/dist/
+**/bin/
+**/obj/
+
+# ── Databases (développement / runtime) ───────────────────────────────────────
+factur.db
+factur.db.bak-*
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ── Configuration locale & secrets ────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.pfx
+
+# ── IDE / éditeurs ────────────────────────────────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ── Windows ───────────────────────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
