@@ -50,6 +50,10 @@ public class AppController : ControllerBase
     [HttpPost("restart")]
     public ActionResult Restart()
     {
+        // Ce redémarrage est toujours initié par l'interface (restauration ou
+        // écran d'erreur) : il ne doit pas être signalé comme un arrêt anormal.
+        _appStatus.SetRestartPending(true);
+
         // Le délai laisse le temps à la réponse HTTP d'être délivrée ; le launcher
         // relance alors l'API (aucun marqueur de mise à jour présent).
         _ = Task.Run(async () =>

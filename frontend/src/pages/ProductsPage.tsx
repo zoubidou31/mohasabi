@@ -289,7 +289,7 @@ export default function ProductsPage() {
             setPageSize(parseInt(e.target.value, 10));
             setPage(0);
           }}
-          labelRowsPerPage={t('common.filter')}
+          labelRowsPerPage={t('common.rowsPerPage')}
           rowsPerPageOptions={[10, 20, 50, 100]}
           sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />

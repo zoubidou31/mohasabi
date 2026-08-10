@@ -118,7 +118,7 @@ public class ClientService : IClientService
 
         var totalCount = await q.CountAsync(ct);
         var page = Math.Max(1, query.Page);
-        var pageSize = Math.Max(1, query.PageSize);
+        var pageSize = Math.Min(100, Math.Max(1, query.PageSize));
 
         var clients = await q
             .OrderBy(c => c.DisplayName)

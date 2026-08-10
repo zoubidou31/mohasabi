@@ -92,7 +92,7 @@ public class ProductService : IProductService
 
         var totalCount = await q.CountAsync(ct);
         page = Math.Max(1, page);
-        pageSize = Math.Max(1, pageSize);
+        pageSize = Math.Min(100, Math.Max(1, pageSize));
 
         var products = await q
             .OrderBy(p => p.Name)
