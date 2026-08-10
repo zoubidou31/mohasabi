@@ -1,7 +1,14 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import {
+  Alert,
   AppBar,
   Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   IconButton,
   List,
@@ -49,7 +56,21 @@ export default function AppLayout() {
   const [langAnchor, setLangAnchor] = useState<HTMLElement | null>(null);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
 
-  const { updateAvailable, setUpdate } = useUpdateStore();
+  const {
+    updateAvailable,
+    latestVersion,
+    currentVersion,
+    releaseNotes,
+    checked,
+    dialogOpen,
+    dismissed,
+    installing,
+    installError,
+    setUpdate,
+    openDialog,
+    dismissDialog,
+    installNow,
+  } = useUpdateStore();
   const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
@@ -80,6 +101,15 @@ export default function AppLayout() {
       cancelled = true;
     };
   }, [setUpdate]);
+
+  // Détection d'une mise à jour : la boîte de dialogue d'information s'affiche
+  // une seule fois par session, uniquement après la vérification (jamais de
+  // téléchargement ni d'installation automatique — « Plus tard » ne fait rien).
+  useEffect(() => {
+    if (updateAvailable && checked && !dismissed && !dialogOpen) {
+      openDialog();
+    }
+  }, [updateAvailable, checked, dismissed, dialogOpen, openDialog]);
 
   // La version affichée dans le footer provient toujours de l'API locale
   // (/api/version, renvoyée depuis l'assemblage) — jamais d'une constante codée en dur.
@@ -375,6 +405,53 @@ export default function AppLayout() {
       >
         {appVersion ? `Mohasabi v${appVersion}` : 'Mohasabi'}
       </Box>
+
+      {/* Boîte de dialogue de mise à jour : purement informative, affichée après
+          la vérification. « Plus tard » ne télécharge ni n'installe rien.
+          « Mettre à jour » télécharge, vérifie l'empreinte SHA-256 côté API,
+          puis installe et redémarre l'application. */}
+      <Dialog open={dialogOpen} onClose={installing ? undefined : dismissDialog}>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t('update.dialogTitle')}</DialogTitle>
+        <DialogContent sx={{ minWidth: 380 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
+            <Typography variant="body2">
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                {t('update.currentVersion')} :{' '}
+              </Box>
+              {currentVersion ?? appVersion}
+            </Typography>
+            <Typography variant="body2">
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                {t('update.newVersion')} :{' '}
+              </Box>
+              {latestVersion}
+            </Typography>
+            {latestVersion && releaseNotes && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+                {releaseNotes}
+              </Typography>
+            )}
+          </Box>
+          {installError && (
+            <Alert severity="error" sx={{ mb: 1.5, '& .MuiAlert-message': { fontSize: 13 } }}>
+              {installError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="outlined" onClick={dismissDialog} disabled={installing}>
+            {t('update.plusTard')}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={installing ? <CircularProgress size={16} color="inherit" /> : undefined}
+            disabled={installing}
+            onClick={() => void installNow()}
+          >
+            {t('update.mettreAJour')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

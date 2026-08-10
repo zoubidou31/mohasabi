@@ -186,6 +186,7 @@ const resources = {
       update: {
         title: 'Mise à jour',
         currentVersion: 'Version actuelle',
+        newVersion: 'Nouvelle version',
         checkForUpdates: 'Rechercher les mises à jour',
         checking: 'Recherche de mises à jour...',
         installNow: 'Installer maintenant',
@@ -194,6 +195,9 @@ const resources = {
         upToDate: 'Vous utilisez la dernière version de Mohasabi.',
         checkFailed: 'Impossible de vérifier les mises à jour.',
         notification: 'Une nouvelle version de Mohasabi est disponible. Cliquez ici pour mettre à jour.',
+        dialogTitle: 'Une nouvelle version de Mohasabi est disponible.',
+        plusTard: 'Plus tard',
+        mettreAJour: 'Mettre à jour',
         installTitle: 'Installer la mise à jour',
         installBody:
           "Une nouvelle version de Mohasabi va être installée. L'application se fermera automatiquement et redémarrera une fois la mise à jour terminée. Vos données ne seront pas modifiées.",
@@ -417,6 +421,7 @@ const resources = {
       update: {
         title: 'Update',
         currentVersion: 'Current version',
+        newVersion: 'New version',
         checkForUpdates: 'Check for updates',
         checking: 'Checking for updates...',
         installNow: 'Install now',
@@ -425,6 +430,9 @@ const resources = {
         upToDate: 'You are using the latest version of Mohasabi.',
         checkFailed: 'Unable to check for updates.',
         notification: 'A new Mohasabi update is available. Click here to update.',
+        dialogTitle: 'A new version of Mohasabi is available.',
+        plusTard: 'Later',
+        mettreAJour: 'Update now',
         installTitle: 'Install the update',
         installBody:
           'A new version of Mohasabi will be installed. The application will close automatically and restart once the update is complete. Your data will not be modified.',
