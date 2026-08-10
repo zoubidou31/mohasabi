@@ -88,7 +88,7 @@ public class RestoreService : IRestoreService
             };
             await WriteManifestAsync(manifest, ct);
 
-            _logger.LogInformation("Restauration de {FileName} préparée (sauvegarde d'urgence : {Emergency}).", manifest.BackupFileName, emergencyName);
+            _logger.LogInformation("Restauration préparée (sauvegarde d'urgence : {Emergency}).", emergencyName);
             return new RestoreResult
             {
                 Success = true,
@@ -438,8 +438,9 @@ public class RestoreService : IRestoreService
 
     private static string ResolveSafePath(string backupDir, string fileName)
     {
-        var fullPath = Path.GetFullPath(Path.Combine(backupDir, Path.GetFileName(fileName)));
-        if (!fullPath.StartsWith(Path.GetFullPath(backupDir), StringComparison.OrdinalIgnoreCase))
+        var root = Path.GetFullPath(backupDir);
+        var fullPath = Path.GetFullPath(Path.Combine(root, Path.GetFileName(fileName)));
+        if (!string.Equals(Path.GetDirectoryName(fullPath), root, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Nom de fichier invalide.");
         }

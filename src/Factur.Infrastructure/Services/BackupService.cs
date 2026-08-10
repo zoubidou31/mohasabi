@@ -164,18 +164,29 @@ public class BackupService : IBackupService
 
     public async Task DeleteAsync(string fileName, CancellationToken ct = default)
     {
+        var name = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(name) || !string.Equals(name, fileName, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Nom de fichier invalide.");
+        }
+
         var settings = await _settingsService.GetAsync(ct);
-        var backupDir = settings.BackupLocation;
-        var fullPath = ResolveSafePath(backupDir, fileName);
-        if (!File.Exists(fullPath))
+        var backupDir = Path.GetFullPath(settings.BackupLocation);
+        var index = await ReadIndexAsync(backupDir, ct);
+        var entry = index.Backups.FirstOrDefault(b => string.Equals(b.FileName, name, StringComparison.OrdinalIgnoreCase));
+        if (entry is null)
         {
             throw new FileNotFoundException("Sauvegarde introuvable.", fileName);
         }
 
-        File.Delete(fullPath);
+        var fullPath = Path.Combine(backupDir, entry.FileName);
+        if (!string.Equals(Path.GetDirectoryName(fullPath), backupDir, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Nom de fichier invalide.");
+        }
 
-        var index = await ReadIndexAsync(backupDir, ct);
-        index.Backups.RemoveAll(b => b.FileName == fileName);
+        File.Delete(fullPath);
+        index.Backups.Remove(entry);
         await WriteIndexAsync(backupDir, index, ct);
     }
 
@@ -290,8 +301,9 @@ public class BackupService : IBackupService
 
     private static string ResolveSafePath(string backupDir, string fileName)
     {
-        var fullPath = Path.GetFullPath(Path.Combine(backupDir, Path.GetFileName(fileName)));
-        if (!fullPath.StartsWith(Path.GetFullPath(backupDir), StringComparison.OrdinalIgnoreCase))
+        var root = Path.GetFullPath(backupDir);
+        var fullPath = Path.GetFullPath(Path.Combine(root, Path.GetFileName(fileName)));
+        if (!string.Equals(Path.GetDirectoryName(fullPath), root, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Nom de fichier invalide.");
         }
