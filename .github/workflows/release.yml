@@ -39,7 +39,7 @@ jobs:
         run: |
           $tag = $env:GITHUB_REF_NAME
           if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
-            $version = '0.0.0-pr'
+            $version = '0.0.0'
           } else {
             $version = $tag.TrimStart('v')
           }
