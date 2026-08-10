@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -103,7 +104,16 @@ internal static class Program
         _form.FormClosing += (_, _) => StopApi();
 
         _port = ChoosePort();
-        if (!StartApi(_port))
+
+        // Écran de démarrage : animé pendant que l'API locale démarre en
+        // arrière-plan ; se referme en fondu quand l'API est prête (min ~1,5 s).
+        var versionText = GetVersionText();
+        var splash = new SplashForm(versionText, Path.Combine(exeDir, "mohasabi.png"), () => StartApi(_port));
+        Application.Run(splash);
+        var apiReady = splash.StartupSucceeded;
+        splash.Dispose();
+
+        if (!apiReady)
         {
             MessageBox.Show(
                 "Impossible de démarrer le serveur Mohasabi.",
@@ -130,6 +140,18 @@ internal static class Program
         StopApi();
         _form?.DisposeWebView();
         return 0;
+    }
+    private static string GetVersionText()
+    {
+        var assembly = Assembly.GetEntryAssembly();
+        var info = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(info))
+        {
+            var plus = info.IndexOf('+');
+            return plus > 0 ? info[..plus] : info;
+        }
+
+        return assembly?.GetName().Version?.ToString(3) ?? "1.0.0";
     }
 
     private static string ReadManifestUrl(string configPath)

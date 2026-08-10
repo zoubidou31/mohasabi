@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <None Include="..\..\assets\mohasabi.ico" Link="mohasabi.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\mohasabi.png" Link="mohasabi.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

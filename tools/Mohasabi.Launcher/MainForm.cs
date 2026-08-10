@@ -21,6 +21,7 @@ internal sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1280, 820);
         MinimumSize = new Size(960, 600);
+        WindowState = FormWindowState.Maximized;
         ShowInTaskbar = true;
         ShowIcon = true;
         Icon = LoadIcon(iconPath);
