@@ -118,6 +118,13 @@ public interface ISettingsService
 {
     Task<AppSettings> GetAsync(CancellationToken ct = default);
     Task<AppSettings> SaveAsync(AppSettings settings, CancellationToken ct = default);
+
+    /// <summary>
+    /// Persiste les préférences courantes (défauts) si le fichier n'existe pas encore.
+    /// Garantit qu'une sauvegarde de première exécution peut toujours inclure settings.json.
+    /// </summary>
+    Task EnsurePersistedAsync(CancellationToken ct = default);
+
     Task<BackupState> GetBackupStateAsync(CancellationToken ct = default);
     Task SetBackupStateAsync(BackupState state, CancellationToken ct = default);
 }
