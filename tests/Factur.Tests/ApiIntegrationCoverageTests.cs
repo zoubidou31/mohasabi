@@ -352,17 +352,17 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
         // Masqué de la liste active par défaut...
         var active = await SendAsync(HttpMethod.Get, "/api/clients", null);
         active.EnsureSuccessStatusCode();
-        var actifs = (await active.Content.ReadFromJsonAsync<List<ClientDto>>(Json))!;
+        var actifs = (await active.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!.Items;
         Assert.DoesNotContain(actifs, c => c.Id == clientId);
 
         // ...mais présent dans "Archivés" et dans "Tous".
         var archived = await SendAsync(HttpMethod.Get, "/api/clients?status=archived", null);
         archived.EnsureSuccessStatusCode();
-        Assert.Contains((await archived.Content.ReadFromJsonAsync<List<ClientDto>>(Json))!, c => c.Id == clientId);
+        Assert.Contains((await archived.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!.Items, c => c.Id == clientId);
 
         var all = await SendAsync(HttpMethod.Get, "/api/clients?status=all", null);
         all.EnsureSuccessStatusCode();
-        Assert.Contains((await all.Content.ReadFromJsonAsync<List<ClientDto>>(Json))!, c => c.Id == clientId);
+        Assert.Contains((await all.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!.Items, c => c.Id == clientId);
     }
 
     [Fact]
@@ -384,7 +384,7 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
         // Le client archivé est bien masqué de la liste active.
         var active = await SendAsync(HttpMethod.Get, "/api/clients", null);
         active.EnsureSuccessStatusCode();
-        var actifs = (await active.Content.ReadFromJsonAsync<List<ClientDto>>(Json))!;
+        var actifs = (await active.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!.Items;
         Assert.DoesNotContain(actifs, c => c.Id == clientId);
     }
 
@@ -410,7 +410,7 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
         Assert.Equal("Produit test", product.Name);
 
         var search = await SendAsync(HttpMethod.Get, "/api/products?search=test", null);
-        Assert.Contains((await search.Content.ReadFromJsonAsync<List<ProductDto>>(Json))!, p => p.Id == id);
+        Assert.Contains((await search.Content.ReadFromJsonAsync<PagedResultDto<ProductDto>>(Json))!.Items, p => p.Id == id);
 
         var categories = await SendAsync(HttpMethod.Get, "/api/products/categories", null);
         Assert.Contains("Informatique & Technologie", (await categories.Content.ReadFromJsonAsync<List<string>>(Json))!);
@@ -431,10 +431,10 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
         Assert.Equal(120m, inactif.DefaultPrice);
 
         var actifs = await SendAsync(HttpMethod.Get, "/api/products", null);
-        Assert.DoesNotContain((await actifs.Content.ReadFromJsonAsync<List<ProductDto>>(Json))!, p => p.Id == id);
+        Assert.DoesNotContain((await actifs.Content.ReadFromJsonAsync<PagedResultDto<ProductDto>>(Json))!.Items, p => p.Id == id);
 
         var tous = await SendAsync(HttpMethod.Get, "/api/products?includeInactive=true", null);
-        Assert.Contains((await tous.Content.ReadFromJsonAsync<List<ProductDto>>(Json))!, p => p.Id == id);
+        Assert.Contains((await tous.Content.ReadFromJsonAsync<PagedResultDto<ProductDto>>(Json))!.Items, p => p.Id == id);
 
         var deleted = await SendAsync(HttpMethod.Delete, $"/api/products/{id}", null);
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
@@ -630,7 +630,8 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
     {
         var response = await SendAsync(HttpMethod.Get, "/api/clients", null);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<List<ClientDto>>(Json))!;
+        var paged = (await response.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!;
+        return paged.Items;
     }
 
     private async Task<Guid> GetOrCreateClientIdAsync()
@@ -735,6 +736,8 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
     private sealed record CompanyDto(string CompanyName, string InvoicePrefix, string? LogoPath);
 
     private sealed record PagedDto(List<InvoiceSummaryDto> Items, int TotalCount, int Page, int PageSize);
+
+    private sealed record PagedResultDto<T>(List<T> Items, int TotalCount, int Page, int PageSize);
 
     private sealed record InvoiceSummaryDto(Guid Id, string InvoiceNumber, string ClientName, DateTime InvoiceDate,
         DateTime? DueDate, string InvoiceType, string Status, decimal TotalHT, decimal TotalTVA, decimal TotalTTC,

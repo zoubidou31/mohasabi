@@ -255,7 +255,7 @@ internal sealed class SplashForm : Form
         }
     }
 
-    /// <summary>Version affichée exactement comme publiée (ex. « Version 1.0.0 »).</summary>
+    /// <summary>Version affichée exactement comme publiée (ex. « Version 1.0.1 »).</summary>
     private void DrawVersion(Graphics g, int w, float t)
     {
         var alpha = (int)(255f * EaseOut(Math.Clamp((t - VersionStartMs) / 240f, 0f, 1f)));

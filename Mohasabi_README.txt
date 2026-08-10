@@ -92,4 +92,4 @@ Téléphone : 0674947157
 
 10. Version
 -----------
-Version du programme : 1.0.0
+Version du programme : 1.0.1

@@ -12,7 +12,7 @@ public class SecurityControlsTests
 {
     [Theory]
     [InlineData("https://github.com/zoubidou31/mohasabi/releases/latest/download/Mohasabi_setup.exe", true)]
-    [InlineData("https://github.com/zoubidou31/mohasabi/releases/download/v1.0.0/Mohasabi_setup.exe", true)]
+    [InlineData("https://github.com/zoubidou31/mohasabi/releases/download/v1.0.1/Mohasabi_setup.exe", true)]
     [InlineData("https://raw.githubusercontent.com/zoubidou31/mohasabi/main/version.json", true)]
     [InlineData("https://gist.githubusercontent.com/x/y/v", true)]
     [InlineData("https://objects.githubusercontent.com/x/y", true)]

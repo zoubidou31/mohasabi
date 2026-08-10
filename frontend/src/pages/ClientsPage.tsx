@@ -20,6 +20,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -28,7 +29,7 @@ import { Building2, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, extractError } from '../api/client';
-import type { Client, ClientType, PaymentMethod } from '../api/types';
+import type { Client, ClientType, PaymentMethod, PagedResult } from '../api/types';
 import { WILAYAS } from '../data/algerianData';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
@@ -56,8 +57,10 @@ const emptyForm = {
 export default function ClientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
+  const [data, setData] = useState<PagedResult<Client> | null>(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -71,12 +74,14 @@ export default function ClientsPage() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get<Client[]>('/clients');
-      setClients(data);
+      const { data: d } = await api.get<PagedResult<Client>>('/clients', {
+        params: { search: search || undefined, page: page + 1, pageSize },
+      });
+      setData(d);
     } catch {
       // handled silently
     }
-  }, []);
+  }, [search, page, pageSize]);
 
   useEffect(() => {
     void load();
@@ -144,7 +149,7 @@ export default function ClientsPage() {
     try {
       await api.delete(`/clients/${id}`);
       // Only optimistically remove from the list on success; never cascade-delete documents.
-      setClients((prev) => prev.filter((c) => c.id !== id));
+      setData((prev) => prev ? { ...prev, items: prev.items.filter((c) => c.id !== id), totalCount: Math.max(0, prev.totalCount - 1) } : prev);
       setAlert({ severity: 'success', message: `${displayName} : ${t('common.deleted')}` });
     } catch (err) {
       // Surtout 409 : garder le client dans la liste et afficher le message réel du backend.
@@ -154,14 +159,6 @@ export default function ClientsPage() {
       setConfirmClient(null);
     }
   };
-
-  const filtered = clients.filter(
-    (c) =>
-      !search ||
-      c.displayName.toLowerCase().includes(search.toLowerCase()) ||
-      (c.companyName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.nif ?? '').includes(search),
-  );
 
   const set = (field: keyof typeof emptyForm, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -187,7 +184,10 @@ export default function ClientsPage() {
         <TextField
           label={t('common.search')}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
           size="small"
           placeholder={t('client.displayName')}
           sx={{ minWidth: 300, maxWidth: 420 }}
@@ -209,7 +209,7 @@ export default function ClientsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.map((c) => (
+            {data?.items.map((c) => (
               <TableRow key={c.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/clients/${c.id}`)}>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -252,7 +252,7 @@ export default function ClientsPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && (
+            {data && data.items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   <Search size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
@@ -262,6 +262,20 @@ export default function ClientsPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={data?.totalCount ?? 0}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={pageSize}
+          onRowsPerPageChange={(e) => {
+            setPageSize(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          labelRowsPerPage={t('common.filter')}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </TableContainer>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="md">

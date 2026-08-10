@@ -84,6 +84,10 @@ try
     app.MapControllers();
     app.MapFallbackToFile("index.html");
 
+    // Restauration en attente (avant l'ouverture de la base), puis état de la
+    // session précédente (arrêt propre / interruption).
+    await app.Services.InitializeAppStateAsync();
+
     // Migration + données de démarrage
     await app.Services.InitializeDatabaseAsync();
 

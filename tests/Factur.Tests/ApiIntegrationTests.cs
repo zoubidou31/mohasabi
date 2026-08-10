@@ -136,10 +136,11 @@ public class ApiIntegrationTests : IClassFixture<ApiFactory>
 
     private async Task<Guid> EnsureClientIdAsync()
     {
-        var clients = (await (await _client.GetAsync("/api/clients")).Content.ReadFromJsonAsync<List<ClientDto>>(Json))!;
-        if (clients.Count > 0)
+        var response = await _client.GetAsync("/api/clients");
+        var paged = (await response.Content.ReadFromJsonAsync<PagedResultDto<ClientDto>>(Json))!;
+        if (paged.Items.Count > 0)
         {
-            return clients[0].Id;
+            return paged.Items[0].Id;
         }
 
         var create = await _client.PostAsJsonAsync("/api/clients", new
@@ -182,6 +183,8 @@ public class ApiIntegrationTests : IClassFixture<ApiFactory>
     // ---------------------------------------------------------------- DTOs
 
     private sealed record ClientDto(Guid Id, string DisplayName);
+
+    private sealed record PagedResultDto<T>(List<T> Items, int TotalCount, int Page, int PageSize);
 
     private sealed record CompanyDto(string CompanyName, string InvoicePrefix);
 

@@ -25,16 +25,16 @@ import { api, extractError } from '../api/client';
 import type { Client, InvoiceStatus, PagedResult, InvoiceSummary } from '../api/types';
 import { formatCurrency, formatDate } from '../utils/format';
 import PageHeader from '../components/PageHeader';
+import SearchSelect from '../components/SearchSelect';
 import StatusBadge from '../components/StatusBadge';
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [data, setData] = useState<PagedResult<InvoiceSummary> | null>(null);
-  const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [clientId, setClientId] = useState('');
+  const [client, setClient] = useState<Client | null>(null);
   const [date, setDate] = useState('');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
@@ -45,7 +45,7 @@ export default function InvoicesPage() {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    if (clientId) params.set('clientId', clientId);
+    if (client) params.set('clientId', client.id);
     if (date) params.set('from', date);
     params.set('page', String(page + 1));
     params.set('pageSize', String(pageSize));
@@ -56,22 +56,18 @@ export default function InvoicesPage() {
     } catch (err) {
       setLoadError(extractError(err));
     }
-  }, [search, status, clientId, date, page, pageSize]);
+  }, [search, status, client, date, page, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load, reload]);
 
-  useEffect(() => {
-    api.get<Client[]>('/clients').then(({ data }) => setClients(data)).catch(() => {});
-  }, []);
-
-  const hasFilters = Boolean(search || status || clientId || date);
+  const hasFilters = Boolean(search || status || client || date);
 
   const resetFilters = () => {
     setSearch('');
     setStatus('');
-    setClientId('');
+    setClient(null);
     setDate('');
     setPage(0);
   };
@@ -112,17 +108,20 @@ export default function InvoicesPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>{t('invoice.client')}</InputLabel>
-            <Select label={t('invoice.client')} value={clientId} onChange={(e) => { setClientId(e.target.value); setPage(0); }}>
-              <MenuItem value="">{t('common.all')}</MenuItem>
-              {clients.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.displayName}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ width: 220 }}>
+            <SearchSelect<Client>
+              endpoint="/clients"
+              value={client}
+              onChange={(val) => {
+                setClient(val);
+                setPage(0);
+              }}
+              getOptionLabel={(c) => c.displayName}
+              label={t('invoice.client')}
+              size="small"
+              fullWidth
+            />
+          </Box>
           <TextField
             type="date"
             size="small"

@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   AppBar,
@@ -21,10 +21,9 @@ import {
 import {
   Bell,
   FileText,
-  Globe,
   Menu as MenuIcon,
   Package,
-  Settings,
+  SlidersHorizontal,
   Users,
   WalletCards,
   X,
@@ -33,18 +32,13 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useUpdateStore } from '../stores/updateStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const navItems = [
   { key: 'invoices', icon: FileText, path: '/invoices' },
   { key: 'clients', icon: Users, path: '/clients' },
   { key: 'products', icon: Package, path: '/products' },
   { key: 'reports', icon: WalletCards, path: '/reports' },
-  { key: 'settings', icon: Settings, path: '/settings' },
-];
-
-const languages = [
-  { code: 'fr', label: 'Français' },
-  { code: 'en', label: 'English' },
 ];
 
 export default function AppLayout() {
@@ -53,8 +47,9 @@ export default function AppLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [langAnchor, setLangAnchor] = useState<HTMLElement | null>(null);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
+  const [uncleanDismissed, setUncleanDismissed] = useState(false);
+  const uncleanExit = useSettingsStore((s) => s.uncleanExit);
 
   const {
     updateAvailable,
@@ -136,14 +131,7 @@ export default function AppLayout() {
 
   const openUpdateNotification = () => {
     setNotifAnchor(null);
-    navigate('/settings');
-  };
-
-  const changeLang = (code: string) => {
-    localStorage.setItem('mohasabi_lang', code);
-    void i18n.changeLanguage(code);
-    document.documentElement.lang = code;
-    setLangAnchor(null);
+    navigate('/options');
   };
 
   const navContent = (isMobile: boolean) => (
@@ -223,28 +211,6 @@ export default function AppLayout() {
           <Box sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1 }}>{navContent(false)}</Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
-            {/* Language selector */}
-            <Box
-              onClick={(e: MouseEvent<HTMLDivElement>) => setLangAnchor(e.currentTarget)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 1.5,
-                py: 1,
-                borderRadius: 2,
-                cursor: 'pointer',
-                color: 'text.secondary',
-                fontSize: 14,
-                fontWeight: 600,
-                transition: 'background-color 0.2s ease, color 0.2s ease',
-                '&:hover': { backgroundColor: 'grey.100', color: 'text.primary' },
-              }}
-            >
-              <Globe size={17} />
-              <span>{languages.find((l) => l.code === i18n.language)?.label ?? 'Français'}</span>
-            </Box>
-
             {/* Notifications */}
             <Tooltip title={t('common.notifications')}>
               <IconButton onClick={(e) => setNotifAnchor(e.currentTarget)} sx={{ position: 'relative' }}>
@@ -275,6 +241,13 @@ export default function AppLayout() {
               </IconButton>
             </Tooltip>
 
+            {/* Options */}
+            <Tooltip title={t('nav.options')}>
+              <IconButton onClick={() => navigate('/options')}>
+                <SlidersHorizontal size={19} />
+              </IconButton>
+            </Tooltip>
+
             {/* Mobile menu button */}
             <IconButton
               sx={{ display: { md: 'none' }, ml: 0.5 }}
@@ -286,26 +259,6 @@ export default function AppLayout() {
           </Box>
         </Toolbar>
       </AppBar>
-
-      {/* Language menu */}
-      <Menu
-        anchorEl={langAnchor}
-        open={Boolean(langAnchor)}
-        onClose={() => setLangAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        {languages.map((l) => (
-          <MenuItem
-            key={l.code}
-            onClick={() => changeLang(l.code)}
-            selected={i18n.language === l.code}
-            sx={{ minWidth: 160, fontWeight: i18n.language === l.code ? 700 : 500 }}
-          >
-            {l.label}
-          </MenuItem>
-        ))}
-      </Menu>
 
       {/* Notifications menu */}
       <Menu
@@ -380,6 +333,19 @@ export default function AppLayout() {
           mx: 'auto',
         }}
       >
+        {uncleanExit && !uncleanDismissed && (
+          <Alert
+            severity="info"
+            variant="outlined"
+            onClose={() => setUncleanDismissed(true)}
+            sx={{ mb: 2, alignItems: 'center' }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 13.5 }}>{t('uncleanExit.title')}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{t('uncleanExit.body')}</Typography>
+            </Box>
+          </Alert>
+        )}
         <Outlet />
       </Box>
 

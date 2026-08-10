@@ -1,5 +1,44 @@
 # Notes de version — Mohasabi
 
+## 1.0.1 (Options, sauvegarde automatique et performances)
+
+**Mohasabi — Assistant comptable** : nouvelle page Options (préférences générales,
+sauvegarde automatique des données, écran de démarrage), protection de la base de
+données par sauvegardes automatiques vérifiées et restauration sécurisée, plus une
+montée en charge pour les grands volumes (pagination côté serveur).
+
+### Page Options
+- Nouvelle page « Options » accessible par une icône dédiée dans l'en-tête (à côté
+  des notifications). La sélection de la langue quitte l'en-tête pour Options → Général.
+- Sections professionnelles : Général (langue, thème clair/sombre/système),
+  Données & Sauvegarde, Affichage & Expérience (écran de démarrage activable), Raccourcis.
+- Bouton « Enregistrer les modifications » : les préférences persistent après redémarrage.
+
+### Sauvegarde automatique
+- Sauvegarde automatique activable (5 min → 1 fois par jour, défaut 30 min) dans un
+  dossier utilisateur dédié (%APPDATA%\Mohasabi\Backups).
+- Copie de la base SQLite par mécanisme SQLite de sauvegarde en ligne (état cohérent),
+  fichiers téléversés (logo, tampon), et préférences — le tout archivé en ZIP horodaté.
+- Chaque sauvegarde est vérifiée (intégrité de la base, liste des fichiers, empreinte
+  SHA-256) avant d'afficher « Protégé ».
+- Rétention configurable (3, 5, 10 sauvegardes ou tout conserver ; défaut 5).
+- Bouton « Sauvegarder maintenant », statut de la dernière sauvegarde, ouverture du dossier.
+
+### Restauration sécurisée
+- Restauration depuis la liste des sauvegardes (date, taille, statut).
+- Avant toute restauration : validation complète de la sauvegarde, puis sauvegarde
+  d'urgence automatique des données courantes (chemin de retour possible).
+- Les données ne sont jamais remplacées silencieusement : confirmation explicite,
+  redémarrage maîtrisé, validation de la base restaurée et retour arrière en cas d'échec.
+
+### Robustesse
+- Dialogue d'erreur professionnel en cas de problème inattendu (« Redémarrer Mohasabi »
+  / « Fermer », détails techniques masqués par défaut).
+- Détection d'une session précédente non fermée normalement : message non bloquant
+  informant que les données sont protégées par la dernière sauvegarde.
+- Pagination côté serveur pour les factures, clients et produits (grands volumes),
+  recherche et sélecteurs avec recherche à la volée.
+
 ## 1.0.0 (première version officielle)
 
 **Mohasabi — Assistant comptable** : la première version officielle de l'application

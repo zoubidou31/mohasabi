@@ -18,9 +18,9 @@ public class ClientsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ClientDto>>> GetAll([FromQuery] ClientQuery query, CancellationToken ct)
+    public async Task<ActionResult<PagedResult<ClientDto>>> GetAll([FromQuery] ClientQuery query, CancellationToken ct)
     {
-        return Ok(await _clientService.GetAllAsync(query, ct));
+        return Ok(await _clientService.GetPagedAsync(query, ct));
     }
 
     [HttpGet("{id:guid}")]

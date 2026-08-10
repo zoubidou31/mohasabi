@@ -88,7 +88,7 @@ public class ClientService : IClientService
         return client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.LastInvoiceDate);
     }
 
-    public async Task<IReadOnlyList<ClientDto>> GetAllAsync(ClientQuery query, CancellationToken ct = default)
+    public async Task<PagedResult<ClientDto>> GetPagedAsync(ClientQuery query, CancellationToken ct = default)
     {
         var q = _context.Clients.AsNoTracking();
 
@@ -116,10 +116,14 @@ public class ClientService : IClientService
             q = q.Where(c => !c.IsActive);
         }
 
+        var totalCount = await q.CountAsync(ct);
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Max(1, query.PageSize);
+
         var clients = await q
             .OrderBy(c => c.DisplayName)
-            .Skip((Math.Max(1, query.Page) - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
         var result = new List<ClientDto>();
@@ -129,7 +133,13 @@ public class ClientService : IClientService
             result.Add(client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.LastInvoiceDate));
         }
 
-        return result;
+        return new PagedResult<ClientDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+        };
     }
 
     public async Task<ClientStatsDto> GetStatsAsync(Guid id, CancellationToken ct = default)

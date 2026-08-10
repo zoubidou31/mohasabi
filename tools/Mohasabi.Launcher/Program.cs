@@ -29,6 +29,7 @@ internal static class Program
     private static string _apiToken = "";
     private static string _dataDir = "";
     private static string _markerPath = "";
+    private static string _cleanExitMarkerPath = "";
     private static string _apiExe = "";
     private static string _manifestUrl = "";
     private static int _crashCount;
@@ -64,6 +65,7 @@ internal static class Program
         var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mohasabi");
         _dataDir = Path.Combine(appData, "data");
         _markerPath = Path.Combine(appData, UpdatePendingFile);
+        _cleanExitMarkerPath = Path.Combine(appData, "clean-exit.marker");
         _manifestUrl = ReadManifestUrl(Path.Combine(exeDir, "launcher.json"));
 
         // Nettoie un marqueur de mise à jour restant (ex. fermeture forcée précédente).
@@ -105,13 +107,22 @@ internal static class Program
 
         _port = ChoosePort();
 
-        // Écran de démarrage : animé pendant que l'API locale démarre en
+        // Écran de démarrage (activable) : animé pendant que l'API locale démarre en
         // arrière-plan ; se referme en fondu quand l'API est prête (min ~1,5 s).
-        var versionText = GetVersionText();
-        var splash = new SplashForm(versionText, Path.Combine(exeDir, "mohasabi.png"), () => StartApi(_port));
-        Application.Run(splash);
-        var apiReady = splash.StartupSucceeded;
-        splash.Dispose();
+        var splashEnabled = IsSplashEnabled(appData);
+        bool apiReady;
+        if (splashEnabled)
+        {
+            var versionText = GetVersionText();
+            var splash = new SplashForm(versionText, Path.Combine(exeDir, "mohasabi.png"), () => StartApi(_port));
+            Application.Run(splash);
+            apiReady = splash.StartupSucceeded;
+            splash.Dispose();
+        }
+        else
+        {
+            apiReady = StartApi(_port);
+        }
 
         if (!apiReady)
         {
@@ -139,7 +150,60 @@ internal static class Program
         // Le formulaire est fermé : nettoyage final.
         StopApi();
         _form?.DisposeWebView();
+        MarkCleanExit();
         return 0;
+    }
+
+    /// <summary>Lit la préférence « écran de démarrage » (activé par défaut).</summary>
+    private static bool IsSplashEnabled(string appData)
+    {
+        var settingsPath = Path.Combine(appData, "settings.json");
+        if (!File.Exists(settingsPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(settingsPath));
+            var splash = FindProperty(doc.RootElement, "splashEnabled");
+            return !splash.HasValue || splash.Value.GetBoolean();
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    /// <summary>Recherche une propriété JSON sans tenir compte de la casse.</summary>
+    private static JsonElement? FindProperty(JsonElement element, string name)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals(name))
+            {
+                return property.Value;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Marque un arrêt propre : permet à l'API de détecter une interruption à la prochaine session.</summary>
+    private static void MarkCleanExit()
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(_cleanExitMarkerPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            File.WriteAllText(_cleanExitMarkerPath, DateTime.UtcNow.ToString("O"));
+        }
+        catch
+        {
+            // Non bloquant.
+        }
     }
     private static string GetVersionText()
     {
@@ -151,7 +215,7 @@ internal static class Program
             return plus > 0 ? info[..plus] : info;
         }
 
-        return assembly?.GetName().Version?.ToString(3) ?? "1.0.0";
+        return assembly?.GetName().Version?.ToString(3) ?? "1.0.1";
     }
 
     private static string ReadManifestUrl(string configPath)
@@ -164,7 +228,8 @@ internal static class Program
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
-            return doc.RootElement.TryGetProperty("manifestUrl", out var m) ? m.GetString() ?? "" : "";
+            var manifest = FindProperty(doc.RootElement, "manifestUrl");
+            return manifest.HasValue ? manifest.Value.GetString() ?? "" : "";
         }
         catch
         {

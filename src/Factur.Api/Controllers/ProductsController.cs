@@ -17,9 +17,9 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ProductDto>>> GetAll([FromQuery] string? search, [FromQuery] bool includeInactive, CancellationToken ct)
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetAll([FromQuery] string? search, [FromQuery] bool includeInactive, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
-        return Ok(await _productService.GetAllAsync(search, includeInactive, ct));
+        return Ok(await _productService.GetPagedAsync(search, includeInactive, page, pageSize, ct));
     }
 
     [HttpGet("categories")]

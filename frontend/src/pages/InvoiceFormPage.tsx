@@ -28,9 +28,11 @@ import { api, extractError } from '../api/client';
 import type { Client, Invoice, InvoiceType, PaymentMethod, Product, TVARate } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
+import SearchSelect from '../components/SearchSelect';
 
 interface LineForm {
   productId?: string;
+  product?: Product;
   reference: string;
   description: string;
   quantity: number;
@@ -49,9 +51,7 @@ export default function InvoiceFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
 
-  const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [clientId, setClientId] = useState('');
+  const [client, setClient] = useState<Client | null>(null);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [validityDays, setValidityDays] = useState(30);
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('Facture');
@@ -66,20 +66,11 @@ export default function InvoiceFormPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.get<Client[]>('/clients'), api.get<Product[]>('/products?includeInactive=true')])
-      .then(([c, p]) => {
-        setClients(c.data);
-        setProducts(p.data);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (!isEdit || !id) return;
     api
       .get<Invoice>(`/invoices/${id}`)
       .then(({ data }) => {
-        setClientId(data.clientId);
+        setClient(data.client ?? ({ id: data.clientId, displayName: data.clientName } as Client));
         setInvoiceDate(data.invoiceDate.slice(0, 10));
         setValidityDays(data.validityDays);
         setInvoiceType(data.invoiceType);
@@ -90,6 +81,7 @@ export default function InvoiceFormPage() {
         setLines(
           data.lines.map((l) => ({
             productId: l.productId,
+            product: l.productId ? ({ id: l.productId, reference: l.reference, name: l.description } as Product) : undefined,
             reference: l.reference,
             description: l.description,
             quantity: l.quantity,
@@ -104,10 +96,10 @@ export default function InvoiceFormPage() {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   };
 
-  const pickProduct = (index: number, productId: string) => {
-    const product = products.find((p) => p.id === productId);
+  const pickProduct = (index: number, product: Product | null) => {
     updateLine(index, {
-      productId,
+      productId: product?.id,
+      product: product ?? undefined,
       reference: product?.reference ?? '',
       description: product?.name ?? '',
       unitPriceHT: product?.defaultPrice ?? 0,
@@ -119,7 +111,7 @@ export default function InvoiceFormPage() {
   const totalTTC = round2(totalHT + totalVAT);
 
   const submit = async () => {
-    if (!clientId) {
+    if (!client) {
       setError(t('invoice.client') + ' : ' + t('common.none'));
       return;
     }
@@ -131,7 +123,7 @@ export default function InvoiceFormPage() {
     setError('');
     const lineTvaRate: TVARate = vatRate === 0.09 ? 'Reduit' : 'Normal';
     const payload = {
-      clientId,
+      clientId: client.id,
       invoiceDate,
       validityDays,
       invoiceType,
@@ -194,16 +186,14 @@ export default function InvoiceFormPage() {
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>{t('invoice.client')}</InputLabel>
-                <Select label={t('invoice.client')} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                  {clients.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>
-                      {c.displayName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchSelect<Client>
+                endpoint="/clients"
+                value={client}
+                onChange={setClient}
+                getOptionLabel={(c) => c.displayName}
+                label={t('invoice.client')}
+                fullWidth
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <TextField
@@ -297,21 +287,17 @@ export default function InvoiceFormPage() {
               <TableBody>
                 {lines.map((line, index) => (
                   <TableRow key={index}>
-                    <TableCell sx={{ minWidth: 180 }}>
-                      <FormControl fullWidth size="small">
-                        <Select
-                          displayEmpty
-                          value={line.productId ?? ''}
-                          onChange={(e) => pickProduct(index, e.target.value)}
-                        >
-                          <MenuItem value="">{t('common.none')}</MenuItem>
-                          {products.map((p) => (
-                            <MenuItem key={p.id} value={p.id}>
-                              {p.reference} — {p.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                    <TableCell sx={{ minWidth: 220 }}>
+                      <SearchSelect<Product>
+                        endpoint="/products"
+                        params={{ includeInactive: true }}
+                        value={line.product ?? null}
+                        onChange={(p) => pickProduct(index, p)}
+                        getOptionLabel={(p) => `${p.reference} — ${p.name}`}
+                        label={t('invoice.product')}
+                        size="small"
+                        fullWidth
+                      />
                     </TableCell>
                     <TableCell>
                       <TextField
