@@ -40,15 +40,21 @@ public class BackupService : IBackupService
     {
         await _gate.WaitAsync(ct);
         var tempDir = Path.Combine(Path.GetTempPath(), "mohasabi-backup-" + Guid.NewGuid().ToString("N"));
+        string? zipPath = null;
+        var indexed = false;
         try
         {
+            // Première exécution : persiste les préférences par défaut pour que l'archive
+            // soit toujours complète (settings.json est exigé par la vérification).
+            await _settingsService.EnsurePersistedAsync(ct);
+
             var settings = await _settingsService.GetAsync(ct);
             var backupDir = settings.BackupLocation;
             Directory.CreateDirectory(backupDir);
 
             var now = DateTime.Now;
             var fileName = $"mohasabi-backup-{now:yyyyMMdd-HHmmss}.zip";
-            var zipPath = Path.Combine(backupDir, fileName);
+            zipPath = Path.Combine(backupDir, fileName);
 
             Directory.CreateDirectory(tempDir);
 
@@ -95,6 +101,7 @@ public class BackupService : IBackupService
             var index = await ReadIndexAsync(backupDir, ct);
             index.Backups.Add(new BackupEntry { FileName = fileName, CreatedAt = createdAt, Size = size, Sha256 = sha256 });
             await WriteIndexAsync(backupDir, index, ct);
+            indexed = true;
 
             // 7. Rétention.
             await ApplyRetentionAsync(backupDir, settings.BackupRetentionCount, ct);
@@ -111,10 +118,12 @@ public class BackupService : IBackupService
         }
         catch (OperationCanceledException)
         {
+            DeleteIncompleteArchive(zipPath, indexed);
             throw;
         }
         catch (Exception ex)
         {
+            DeleteIncompleteArchive(zipPath, indexed);
             _logger.LogError(ex, "Échec de la sauvegarde.");
             await TryRecordFailureAsync(ct);
             return new BackupRunResult { Success = false, Error = ex.Message };
@@ -281,6 +290,32 @@ public class BackupService : IBackupService
             }
         }
         await WriteIndexAsync(backupDir, index, ct);
+    }
+
+    /// <summary>
+    /// Supprime une archive partielle qui n'a pas été indexée : un ZIP d'une sauvegarde
+    /// échouée ne doit jamais rester orphelin dans le dossier des sauvegardes.
+    /// </summary>
+    private static void DeleteIncompleteArchive(string? zipPath, bool indexed)
+    {
+        if (indexed || string.IsNullOrWhiteSpace(zipPath))
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(zipPath))
+            {
+                File.Delete(zipPath);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private async Task TryRecordFailureAsync(CancellationToken ct)

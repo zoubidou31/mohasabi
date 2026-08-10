@@ -28,4 +28,8 @@
     <AssemblyName>Mohasabi.Infrastructure</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Factur.Tests" />
+  </ItemGroup>
+
 </Project>

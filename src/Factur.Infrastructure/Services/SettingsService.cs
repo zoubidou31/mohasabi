@@ -108,17 +108,38 @@ public class SettingsService : ISettingsService
         await _gate.WaitAsync(ct);
         try
         {
-            Directory.CreateDirectory(_root);
-            settings.NormalizeDefaults(_root);
-            var tmp = _settingsFile + ".tmp";
-            var json = JsonSerializer.Serialize(settings, JsonOptions);
-            await File.WriteAllTextAsync(tmp, json, ct);
-            File.Move(tmp, _settingsFile, overwrite: true);
+            await WriteCoreAsync(settings, ct);
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    public async Task EnsurePersistedAsync(CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (!File.Exists(_settingsFile))
+            {
+                await WriteCoreAsync(CreateDefault(), ct);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task WriteCoreAsync(PersistedSettings settings, CancellationToken ct)
+    {
+        Directory.CreateDirectory(_root);
+        settings.NormalizeDefaults(_root);
+        var tmp = _settingsFile + ".tmp";
+        var json = JsonSerializer.Serialize(settings, JsonOptions);
+        await File.WriteAllTextAsync(tmp, json, ct);
+        File.Move(tmp, _settingsFile, overwrite: true);
     }
 
     private PersistedSettings CreateDefault()
