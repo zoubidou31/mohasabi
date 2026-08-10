@@ -17,6 +17,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -24,7 +25,7 @@ import {
 import { Package, Pencil, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api, extractError } from '../api/client';
-import type { Product, TVARate, Category } from '../api/types';
+import type { Product, TVARate, Category, PagedResult } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
@@ -43,9 +44,11 @@ const emptyForm = {
 
 export default function ProductsPage() {
   const { t } = useTranslation();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [data, setData] = useState<PagedResult<Product> | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -61,12 +64,14 @@ export default function ProductsPage() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get<Product[]>('/products?includeInactive=true');
-      setProducts(data);
+      const { data: d } = await api.get<PagedResult<Product>>('/products', {
+        params: { includeInactive: true, search: search || undefined, page: page + 1, pageSize },
+      });
+      setData(d);
     } catch {
       // handled silently
     }
-  }, []);
+  }, [search, page, pageSize]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -170,14 +175,6 @@ export default function ProductsPage() {
     }
   };
 
-  const filtered = products.filter(
-    (p) =>
-      !search ||
-      p.reference.toLowerCase().includes(search.toLowerCase()) ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.categoryName ?? p.category ?? '').toLowerCase().includes(search.toLowerCase()),
-  );
-
   const set = (field: keyof typeof emptyForm, value: string | number | boolean) => setForm((f) => ({ ...f, [field]: value }));
 
   const filteredCategories = useMemo(() => {
@@ -202,7 +199,10 @@ export default function ProductsPage() {
         <TextField
           label={t('common.search')}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
           size="small"
           placeholder={t('product.name')}
           sx={{ minWidth: 300, maxWidth: 420 }}
@@ -224,7 +224,7 @@ export default function ProductsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.map((p) => (
+            {data?.items.map((p) => (
               <TableRow key={p.id} hover>
                 <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{p.reference}</TableCell>
                 <TableCell>
@@ -269,7 +269,7 @@ export default function ProductsPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && (
+            {data && data.items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
                   <Search size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
@@ -279,6 +279,20 @@ export default function ProductsPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={data?.totalCount ?? 0}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={pageSize}
+          onRowsPerPageChange={(e) => {
+            setPageSize(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          labelRowsPerPage={t('common.rowsPerPage')}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+        />
       </TableContainer>
 
       {/* ── Product dialog ── */}

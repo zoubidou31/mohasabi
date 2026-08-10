@@ -74,7 +74,7 @@ public class ProductService : IProductService
         return product.ToDto();
     }
 
-    public async Task<IReadOnlyList<ProductDto>> GetAllAsync(string? search = null, bool includeInactive = false, CancellationToken ct = default)
+    public async Task<PagedResult<ProductDto>> GetPagedAsync(string? search = null, bool includeInactive = false, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         IQueryable<Product> q = _context.Products.AsNoTracking().Include(p => p.CategoryRef);
         if (!includeInactive)
@@ -90,8 +90,23 @@ public class ProductService : IProductService
                              || (p.Description != null && p.Description.ToLower().Contains(s)));
         }
 
-        var products = await q.OrderBy(p => p.Name).ToListAsync(ct);
-        return products.Select(p => p.ToDto()).ToList();
+        var totalCount = await q.CountAsync(ct);
+        page = Math.Max(1, page);
+        pageSize = Math.Min(100, Math.Max(1, pageSize));
+
+        var products = await q
+            .OrderBy(p => p.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<ProductDto>
+        {
+            Items = products.Select(p => p.ToDto()).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+        };
     }
 
     public async Task<IReadOnlyList<string>> GetCategoriesAsync(CancellationToken ct = default)

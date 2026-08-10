@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.Configure<EmailSettings>(configuration.GetSection("Email"));
         services.Configure<StorageOptions>(configuration.GetSection("Storage"));
         services.Configure<UpdateOptions>(configuration.GetSection("Update"));
+        services.Configure<AppOptions>(configuration.GetSection("App"));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -36,7 +37,24 @@ public static class DependencyInjection
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IUpdateService, UpdateService>();
 
+        services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IBackupService, BackupService>();
+        services.AddSingleton<IRestoreService, RestoreService>();
+        services.AddSingleton<IAppStatusService, AppStatusService>();
+        services.AddHostedService<AutomaticBackupHostedService>();
+
         return services;
+    }
+
+    /// <summary>Applique une restauration en attente, puis évalue l'arrêt de la session précédente.</summary>
+    public static async Task InitializeAppStateAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var restoreService = scope.ServiceProvider.GetRequiredService<IRestoreService>();
+        await restoreService.ApplyPendingAsync();
+
+        var statusService = scope.ServiceProvider.GetRequiredService<IAppStatusService>();
+        statusService.EvaluateAtStartup();
     }
 
     /// <summary>Applique les migrations de la base de données.</summary>

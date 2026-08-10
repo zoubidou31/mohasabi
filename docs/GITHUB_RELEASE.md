@@ -1,5 +1,10 @@
 # Publication GitHub Release — Mohasabi
 
+> **Version courante : 1.0.1.** Le guide ci-dessous documente la première publication
+> (1.0.0) et la procédure pour les versions suivantes (§8) ; les étapes restent
+> identiques pour toute version `vX.Y.Z` (bump de `Directory.Build.props`, tag,
+> assets depuis `release\update-source\`).
+
 Guide de publication de `Mohasabi 1.0.0` (première version officielle) sur GitHub
 Releases et branchement du système de mise à jour intégré sur GitHub (HTTPS).
 

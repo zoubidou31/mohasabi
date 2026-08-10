@@ -146,6 +146,49 @@ export interface PagedResult<T> {
   totalPages: number;
 }
 
+export interface AppSettings {
+  language: string;
+  theme: string;
+  autoBackupEnabled: boolean;
+  backupFrequencyMinutes: number;
+  backupRetentionCount: number;
+  backupLocation: string;
+  splashEnabled: boolean;
+}
+
+export interface BackupStatus {
+  autoBackupEnabled: boolean;
+  backupFrequencyMinutes: number;
+  backupLocation: string;
+  lastBackupAt?: string;
+  lastBackupStatus?: 'ok' | 'failed' | null;
+  lastBackupFileName?: string;
+  backupCount: number;
+  totalSize: number;
+}
+
+export interface BackupInfo {
+  fileName: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface BackupRunResult {
+  success: boolean;
+  fileName?: string;
+  size: number;
+  createdAt: string;
+  error?: string;
+}
+
+export interface RestoreResult {
+  success: boolean;
+  requiresRestart: boolean;
+  message?: string;
+  error?: string;
+}
+
+
 export interface Company {
   id: string;
   companyName: string;

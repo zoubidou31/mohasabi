@@ -17,7 +17,7 @@ public interface IClientService
     Task ArchiveAsync(Guid id, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<ClientDto> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IReadOnlyList<ClientDto>> GetAllAsync(ClientQuery query, CancellationToken ct = default);
+    Task<PagedResult<ClientDto>> GetPagedAsync(ClientQuery query, CancellationToken ct = default);
     Task<ClientStatsDto> GetStatsAsync(Guid id, CancellationToken ct = default);
     Task<int> ImportAsync(IEnumerable<CreateClientRequest> clients, CancellationToken ct = default);
 }
@@ -40,7 +40,7 @@ public interface IProductService
     Task UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<ProductDto> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IReadOnlyList<ProductDto>> GetAllAsync(string? search = null, bool includeInactive = false, CancellationToken ct = default);
+    Task<PagedResult<ProductDto>> GetPagedAsync(string? search = null, bool includeInactive = false, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetCategoriesAsync(CancellationToken ct = default);
     Task<int> ImportAsync(IEnumerable<CreateProductRequest> products, CancellationToken ct = default);
 }
@@ -111,4 +111,47 @@ public interface IUpdateService
     string CurrentVersion { get; }
     Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default);
     Task<string> DownloadInstallerAsync(string downloadUrl, string? expectedSha256 = null, CancellationToken ct = default);
+}
+
+/// <summary>Préférences générales persistées (page Options).</summary>
+public interface ISettingsService
+{
+    Task<AppSettings> GetAsync(CancellationToken ct = default);
+    Task<AppSettings> SaveAsync(AppSettings settings, CancellationToken ct = default);
+    Task<BackupState> GetBackupStateAsync(CancellationToken ct = default);
+    Task SetBackupStateAsync(BackupState state, CancellationToken ct = default);
+}
+
+/// <summary>Sauvegarde et restauration des données.</summary>
+public interface IBackupService
+{
+    Task<BackupRunResult> CreateAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<BackupInfo>> ListAsync(CancellationToken ct = default);
+    Task<BackupStatusDto> GetStatusAsync(CancellationToken ct = default);
+    Task DeleteAsync(string fileName, CancellationToken ct = default);
+}
+
+/// <summary>Restauration sécurisée d'une sauvegarde.</summary>
+public interface IRestoreService
+{
+    Task<RestoreResult> RestoreAsync(RestoreRequest request, CancellationToken ct = default);
+
+    /// <summary>Applique une restauration en attente (appelé au démarrage, avant l'ouverture de la base).</summary>
+    Task ApplyPendingAsync(CancellationToken ct = default);
+}
+
+/// <summary>Marqueurs de cycle de vie de l'application (arrêt propre, redémarrage).</summary>
+public interface IAppStatusService
+{
+    void MarkCleanExit();
+    bool IsRestartPending { get; }
+    void SetRestartPending(bool value);
+
+    /// <summary>Vrai si la session précédente ne s'est pas fermée normalement.</summary>
+    bool UncleanExitDetected { get; }
+
+    /// <summary>Évalue l'état de la session précédente (appelé une fois au démarrage de l'API).</summary>
+    void EvaluateAtStartup();
+
+    Task<bool> HasUncleanExitAsync(CancellationToken ct = default);
 }
