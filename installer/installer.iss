@@ -79,6 +79,8 @@ Source: "{#SourceStaging}\Mohasabi.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 Source: "{#SourceStaging}\mohasabi.ico"; DestDir: "{app}"; Flags: ignoreversion
 
+Source: "{#SourceStaging}\mohasabi.png"; DestDir: "{app}"; Flags: ignoreversion
+
 Source: "{#SourceStaging}\launcher.json"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 
 ; Runtime Microsoft Edge WebView2 (requis par l'application embarquée)

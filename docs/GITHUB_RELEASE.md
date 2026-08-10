@@ -1,7 +1,7 @@
 # Publication GitHub Release — Mohasabi
 
-Guide de publication de `Mohasabi 1.0.0` sur GitHub Releases et branchement du
-système de mise à jour intégré sur GitHub (HTTPS).
+Guide de publication de `Mohasabi 1.0.0` (première version officielle) sur GitHub
+Releases et branchement du système de mise à jour intégré sur GitHub (HTTPS).
 
 ---
 
@@ -64,7 +64,10 @@ Le **Setup 1.0.0 existant n'a pas été modifié ni recompilé** (empreinte cons
 
 Le Setup testé (`Mohasabi_setup.exe`, SHA-256 `8FDA6625B9B75B98EE7D8294C1D2FA53C115B4BF44822D4144B47FD386ACA380`) est publié tel quel.
 
-> **Important (1.0.0 uniquement)** : ce Setup a été construit avant l'ajout de la vérification SHA-256. La vérification d'intégrité sera active à partir du prochain build (1.0.1+). Pour la version 1.0.0, l'URL de mise à jour doit aussi être activée manuellement sur les postes existants (voir étape 0).
+> **Important (1.0.0)** : ce Setup a été construit avec la vérification SHA-256 active.
+> La version 1.0.0 est la première version officielle ; aucune version antérieure n'est
+> conservée dans le système de versioning. L'URL de mise à jour est activée par défaut
+> dans `launcher.json` (voir étape 0).
 
 **Étape 0 — Activer les mises à jour sur le poste déjà installé**
 

@@ -123,6 +123,7 @@ Copy-Item "$launcherOut\Mohasabi.exe" "$staging\Mohasabi.exe"
 Remove-Item -Recurse -Force $launcherOut
 
 Copy-Item "$root\assets\mohasabi.ico" "$staging\mohasabi.ico"
+Copy-Item "$root\assets\mohasabi.png" "$staging\mohasabi.png"
 Copy-Item "$root\installer\launcher.json" "$staging\launcher.json"
 
 # 4) Runtime WebView2 (téléchargé une seule fois, puis vérifié)
