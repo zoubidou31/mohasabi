@@ -1,6 +1,6 @@
 # Publication GitHub Release — Mohasabi
 
-> **Version courante : 1.0.1.** Le guide ci-dessous documente la première publication
+> **Version courante : 1.0.3.** Le guide ci-dessous documente la première publication
 > (1.0.0) et la procédure pour les versions suivantes (§8) ; les étapes restent
 > identiques pour toute version `vX.Y.Z` (bump de `Directory.Build.props`, tag,
 > assets depuis `release\update-source\`).

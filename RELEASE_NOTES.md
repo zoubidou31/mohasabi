@@ -1,5 +1,36 @@
 # Notes de version — Mohasabi
 
+## 1.0.3 (Maintenance : conformité au référentiel d'acceptation)
+
+**Mohasabi — Assistant comptable** : passe de maintenance alignant l'application
+sur les 19 exigences d'acceptation (audit complet, 170 tests automatisés).
+
+### Facturation & rapports
+- Pagination des factures et des rapports à **7 lignes par page** (liste des
+  factures, impayés et détail mensuel).
+- Correction du **solde client** : la colonne « Solde » affiche désormais le total
+  réel des montants restants à payer (somme des soldes restants des factures
+  actives) au lieu de toujours afficher 0.
+
+### Mise à jour
+- **Progression en temps réel** du téléchargement et de l'installation : barre
+  (déterminée ou indéterminée), pourcentage, octets, temps restant estimé, statut
+  de l'installation, case « relancer après installation » (argument `/NOLAUNCH`).
+- Échec de vérification SHA-256 → le fichier téléchargé est supprimé.
+
+### Interface
+- **Garde-fou des raccourcis clavier** : `Ctrl+N/J/S/F` désactivés pendant la saisie
+  (y compris les sélecteurs MUI) pour ne pas intercepter la frappe.
+- Nettoyage : cas mort « En attente » retiré de l'affichage des statuts.
+
+### Robustesse
+- Index de performance sur les jointures facture/statuts et les recherches de
+  factures (migration ajoutée, sans perte de données).
+
+### Qualité
+- 170 tests d'intégration réussis, 0 vulnérabilité npm, 0 package .NET vulnérable,
+  compilation Release 0 erreur / 0 avertissement.
+
 ## 1.0.1 (Options, sauvegarde automatique et performances)
 
 **Mohasabi — Assistant comptable** : nouvelle page Options (préférences générales,

@@ -1,7 +1,7 @@
-# Rapport d'ingénierie — Mohasabi 1.0.1
+# Rapport d'ingénierie — Mohasabi 1.0.3
 
 Date : 11/08/2026
-Produit : **Mohasabi** (Assistant comptable) — version 1.0.1
+Produit : **Mohasabi** (Assistant comptable) — version 1.0.3
 Périmètre : description technique de la solution, des correctifs livrés dans le
 cadre de la campagne d'acceptation et des résultats de vérification.
 
@@ -210,7 +210,7 @@ commercial et l'interface utilisateur sont entièrement **Mohasabi**.
 - `tools/Mohasabi.Launcher` : démarre l'API locale, affiche le splash animé
   (logo Mohasabi, compteur + ligne de reçu), puis ouvre la fenêtre maximisée ;
   gère le marqueur `update-pending` et l'argument `--skip-update`.
-- Version homogène 1.0.1 (frontend `package.json`, installateur, pied de page).
+- Version homogène 1.0.3 (frontend `package.json`, installateur, pied de page).
 
 ## 18. Persistance, sauvegarde et restauration
 
