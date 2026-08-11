@@ -501,14 +501,13 @@ export default function ClientsPage() {
               <TextField
                 label={t('client.phone')}
                 fullWidth
-                required
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
                 onBlur={() => blur('phone')}
                 error={!!fieldError('phone')}
                 helperText={fieldError('phone') || ' '}
                 inputProps={{ inputMode: 'tel' }}
-                InputProps={{ endAdornment: <MarkIcon mark={mark('phone', true)} /> }}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('phone', false)} /> }}
               />
               <TextField
                 label={t('client.mobile')}

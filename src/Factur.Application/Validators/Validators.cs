@@ -28,10 +28,35 @@ public static class FiscalValidationRules
         rule.Matches(@"^(?:0[567]\d{8}|\d{9})$")
             .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
 
+    private static readonly HashSet<string> DisposableEmailDomains = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "mailinator.com", "yopmail.com", "yopmail.fr", "yopmail.net",
+        "guerrillamail.com", "guerrillamail.net", "guerrillamail.org", "guerrillamail.biz", "guerrillamail.de",
+        "10minutemail.com", "10minutemail.net", "10minutemail.org", "10minutemail.info",
+        "tempmail.com", "tempmail.io", "temp-mail.org", "temp-mail.io",
+        "throwawaymail.com", "trashmail.com", "trashmail.de", "trashmail.net", "trashmail.me",
+        "mailnesia.com", "spamgourmet.com", "emailondeck.com", "getnada.com",
+        "dispostable.com", "dropmail.me", "emailtemp.com", "moakt.com",
+        "mailcatch.com", "maildrop.cc", "temporary-mail.net", "mail.tm",
+        "mohmal.com", "mailprotech.com", "mintemail.com", "maildx.com",
+    };
+
+    private static bool IsDisposableEmailDomain(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false;
+        var at = email.IndexOf('@');
+        if (at < 0 || at == email.Length - 1) return false;
+        var domain = email[(at + 1)..].Trim().ToLowerInvariant();
+        return DisposableEmailDomains.Any(d => domain == d || domain.EndsWith("." + d, StringComparison.Ordinal));
+    }
+
     public static IRuleBuilderOptions<T, string?> Email<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^[^\s@]+@[^\s@]+\.(com|dz|net|org)$")
             .When(x => !string.IsNullOrWhiteSpace(x?.ToString()))
-            .WithMessage("Adresse e-mail invalide (domaine doit être .com, .dz, .net ou .org).");
+            .WithMessage("Adresse e-mail invalide (domaine doit être .com, .dz, .net ou .org).")
+            .Must(x => !IsDisposableEmailDomain(x))
+            .When(x => !string.IsNullOrWhiteSpace(x?.ToString()))
+            .WithMessage("Les adresses e-mail jetables (temporaires) ne sont pas autorisées.");
 
     public static IRuleBuilderOptions<T, string?> RIB<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^\d{20}$").When(x => !string.IsNullOrWhiteSpace(x?.ToString() ?? null))
@@ -93,8 +118,8 @@ public class CreateClientRequestValidator : AbstractValidator<CreateClientReques
         RuleFor(x => x.RC).RC().When(x => !string.IsNullOrWhiteSpace(x.RC));
         RuleFor(x => x.ART).ART().When(x => !string.IsNullOrWhiteSpace(x.ART));
 
-        RuleFor(x => x.Phone).NotEmpty().WithMessage("Le téléphone est obligatoire.")
-            .Phone().WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+        RuleFor(x => x.Phone).Phone().When(x => !string.IsNullOrWhiteSpace(x.Phone))
+            .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Mobile).Phone().When(x => !string.IsNullOrWhiteSpace(x.Mobile))
             .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Email).Email().When(x => !string.IsNullOrWhiteSpace(x.Email))

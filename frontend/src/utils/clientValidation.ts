@@ -58,7 +58,7 @@ export function validateClientART(value: string): string {
   return '';
 }
 
-export function validateClientPhone(value: string, required = true): string {
+export function validateClientPhone(value: string, required = false): string {
   const v = value.trim().replace(/\s/g, '');
   if (!v) return required ? 'Le téléphone est obligatoire.' : '';
   if (!/^\d+$/.test(v)) return 'Le téléphone ne doit contenir que des chiffres.';
@@ -66,11 +66,33 @@ export function validateClientPhone(value: string, required = true): string {
   return '';
 }
 
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com', 'yopmail.com', 'yopmail.fr', 'yopmail.net',
+  'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.org', 'guerrillamail.biz', 'guerrillamail.de',
+  '10minutemail.com', '10minutemail.net', '10minutemail.org', '10minutemail.info',
+  'tempmail.com', 'tempmail.io', 'temp-mail.org', 'temp-mail.io',
+  'throwawaymail.com', 'trashmail.com', 'trashmail.de', 'trashmail.net', 'trashmail.me',
+  'mailnesia.com', 'spamgourmet.com', 'emailondeck.com', 'getnada.com',
+  'dispostable.com', 'dropmail.me', 'emailtemp.com', 'moakt.com',
+  'mailcatch.com', 'maildrop.cc', 'temporary-mail.net', 'mail.tm',
+  'mohmal.com', 'mailprotech.com', 'mintemail.com', 'maildx.com',
+]);
+
+function isDisposableEmailDomain(email: string): boolean {
+  const at = email.indexOf('@');
+  if (at < 0 || at === email.length - 1) return false;
+  const domain = email.slice(at + 1).trim().toLowerCase();
+  return Array.from(DISPOSABLE_EMAIL_DOMAINS).some(
+    (d) => domain === d || domain.endsWith('.' + d),
+  );
+}
+
 export function validateClientEmail(value: string): string {
   const v = value.trim();
   if (!v) return '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Format d'e-mail invalide.";
   if (!EMAIL_REGEX.test(v)) return 'Le domaine doit se terminer par .com, .dz, .net ou .org.';
+  if (isDisposableEmailDomain(v)) return 'Les adresses e-mail jetables (temporaires) ne sont pas autorisées.';
   return '';
 }
 

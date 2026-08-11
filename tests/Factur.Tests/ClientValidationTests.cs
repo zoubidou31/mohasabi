@@ -120,10 +120,32 @@ public class ClientValidationTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task TelephoneVide_Refuse()
+    public async Task TelephoneVide_Passe()
     {
+        // Le téléphone fixe est optionnel : vide → enregistrement sans erreur.
         var payload = ValidEntreprise();
         payload.Phone = "";
+        var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MobileValide_TelephoneVide_Passe()
+    {
+        // Mobile algérien valide + téléphone fixe vide → enregistrement sans erreur.
+        var payload = ValidEntreprise();
+        payload.Phone = "";
+        payload.Mobile = "0770123456";
+        var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MobileNonAlgerien_Refuse()
+    {
+        // Le mobile doit respecter les règles de numérotation algériennes.
+        var payload = ValidEntreprise();
+        payload.Mobile = "060123456789";
         var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -145,6 +167,26 @@ public class ClientValidationTests : IClassFixture<ApiFactory>
         // Domaine non autorisé (.xyz) : refusé.
         var payload = ValidEntreprise();
         payload.Email = "contact@firma.xyz";
+        var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task EmailDisposable_Refuse()
+    {
+        // Domaine jetable (temporaire) : refusé même si la forme est valide.
+        var payload = ValidEntreprise();
+        payload.Email = "user@mailinator.com";
+        var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task EmailDisposableSousDomaine_Refuse()
+    {
+        // Sous-domaine d'un domaine jetable : refusé.
+        var payload = ValidEntreprise();
+        payload.Email = "user@tmp.yopmail.com";
         var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

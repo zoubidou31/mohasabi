@@ -192,13 +192,14 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public void Client_TelephoneVide_EstRefuse()
+    public void Client_TelephoneVide_Passe()
     {
+        // Le téléphone fixe est optionnel : vide → valide.
         var validator = new CreateClientRequestValidator();
         var request = ValidClient();
         request.Phone = "";
 
-        Assert.False(validator.Validate(request).IsValid);
+        Assert.True(validator.Validate(request).IsValid);
     }
 
     [Theory]
