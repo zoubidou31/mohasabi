@@ -111,6 +111,17 @@ public class ClientValidationTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task TelephoneFixeAlgerien_Valide_Passe()
+    {
+        // Fixe algérien : 021 (Alger), 041 (Oran), 032 (Annaba) → accepté.
+        var payload = ValidEntreprise();
+        payload.Phone = "0214567890";
+        payload.Mobile = "";
+        var response = await SendAsync(HttpMethod.Post, "/api/clients", payload);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
     public async Task TelephoneTropCourt_Refuse()
     {
         var payload = ValidEntreprise();

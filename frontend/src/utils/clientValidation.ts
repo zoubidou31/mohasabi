@@ -24,7 +24,7 @@ export interface ClientForm {
 
 export type FieldMark = 'ok' | 'warn' | 'error' | 'none';
 
-const PHONE_REGEX = /^(?:0[567]\d{8}|\d{9})$/;
+const PHONE_REGEX = /^(?:0[2-4]\d{8}|0[567]\d{8}|\d{9})$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.(com|dz|net|org)$/i;
 const RC_REGEX = /^\d{2}\/\d{2}-\d{7}[A-Z]\d{2}$/;
 
@@ -62,7 +62,7 @@ export function validateClientPhone(value: string, required = false): string {
   const v = value.trim().replace(/\s/g, '');
   if (!v) return required ? 'Le téléphone est obligatoire.' : '';
   if (!/^\d+$/.test(v)) return 'Le téléphone ne doit contenir que des chiffres.';
-  if (!PHONE_REGEX.test(v)) return 'Le téléphone doit être 05/06/07 + 8 chiffres, ou 9 chiffres.';
+  if (!PHONE_REGEX.test(v)) return 'Le téléphone doit être 02/03/04 (fixe) ou 05/06/07 (mobile) + 8 chiffres, ou 9 chiffres.';
   return '';
 }
 
