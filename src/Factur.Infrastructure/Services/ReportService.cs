@@ -62,6 +62,34 @@ public class ReportService : IReportService
         };
     }
 
+    public async Task<PagedResult<InvoiceSummaryDto>> GetMonthlyInvoicesPagedAsync(int year, int month, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        var from = new DateTime(year, month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+
+        var q = _context.Invoices.AsNoTracking()
+            .Include(i => i.Client)
+            .Where(i => i.InvoiceDate >= from && i.InvoiceDate <= to && i.Status != InvoiceStatus.Annulee)
+            .OrderBy(i => i.InvoiceNumber);
+
+        var safePage = Math.Max(1, page);
+        var safeSize = Math.Clamp(pageSize, 1, 200);
+
+        var totalCount = await q.CountAsync(ct);
+        var items = await q
+            .Skip((safePage - 1) * safeSize)
+            .Take(safeSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<InvoiceSummaryDto>
+        {
+            Items = items.Select(i => i.ToSummaryDto()).ToList(),
+            TotalCount = totalCount,
+            Page = safePage,
+            PageSize = safeSize,
+        };
+    }
+
     public async Task<TVAReportDto> GetTVAReportAsync(DateTime? from, DateTime? to, CancellationToken ct = default)
     {
         var start = from ?? DateTime.UtcNow.AddMonths(-1);
@@ -100,6 +128,38 @@ public class ReportService : IReportService
             .ToListAsync(ct);
 
         return invoices.Select(i => i.ToSummaryDto()).ToList();
+    }
+
+    public async Task<PagedResult<InvoiceSummaryDto>> GetUnpaidPagedAsync(int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        var date = DateTime.UtcNow.Date;
+
+        var q = _context.Invoices.AsNoTracking()
+            .Include(i => i.Client)
+            .Where(i => i.Status != InvoiceStatus.Payee
+                        && i.Status != InvoiceStatus.Annulee
+                        && i.Status != InvoiceStatus.Brouillon
+                        && i.DueDate.HasValue
+                        && i.DueDate.Value.Date < date)
+            .OrderBy(i => i.DueDate)
+            .ThenBy(i => i.InvoiceNumber);
+
+        var safePage = Math.Max(1, page);
+        var safeSize = Math.Clamp(pageSize, 1, 200);
+
+        var totalCount = await q.CountAsync(ct);
+        var items = await q
+            .Skip((safePage - 1) * safeSize)
+            .Take(safeSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<InvoiceSummaryDto>
+        {
+            Items = items.Select(i => i.ToSummaryDto()).ToList(),
+            TotalCount = totalCount,
+            Page = safePage,
+            PageSize = safeSize,
+        };
     }
 
     public async Task<IReadOnlyList<TopClientDto>> GetTopClientsAsync(int count = 10, DateTime? from = null, DateTime? to = null, CancellationToken ct = default)

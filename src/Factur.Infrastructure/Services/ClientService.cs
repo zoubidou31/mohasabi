@@ -85,7 +85,7 @@ public class ClientService : IClientService
             ?? throw new NotFoundException("Client introuvable.");
 
         var stats = await ComputeStatsAsync(id, ct);
-        return client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.LastInvoiceDate);
+        return client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.Outstanding, stats.LastInvoiceDate);
     }
 
     public async Task<PagedResult<ClientDto>> GetPagedAsync(ClientQuery query, CancellationToken ct = default)
@@ -130,7 +130,7 @@ public class ClientService : IClientService
         foreach (var client in clients)
         {
             var stats = await ComputeStatsAsync(client.Id, ct);
-            result.Add(client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.LastInvoiceDate));
+            result.Add(client.ToDto(stats.InvoiceCount, stats.TotalSpent, stats.Outstanding, stats.LastInvoiceDate));
         }
 
         return new PagedResult<ClientDto>
@@ -149,7 +149,7 @@ public class ClientService : IClientService
             throw new NotFoundException("Client introuvable.");
         }
 
-        var (invoiceCount, totalSpent, lastInvoiceDate) = await ComputeStatsAsync(id, ct);
+        var (invoiceCount, totalSpent, outstanding, lastInvoiceDate) = await ComputeStatsAsync(id, ct);
 
         var invoices = await _context.Invoices.AsNoTracking()
             .Where(i => i.ClientId == id)
@@ -168,7 +168,7 @@ public class ClientService : IClientService
             InvoiceCount = invoiceCount,
             TotalSpent = totalSpent,
             TotalPaid = totalPaid,
-            Outstanding = Math.Max(0m, totalSpent - totalPaid),
+            Outstanding = Math.Max(0m, outstanding),
             LastInvoiceDate = lastInvoiceDate,
             RecentInvoices = invoices.Select(i => i.ToSummaryDto()).ToList(),
         };
@@ -215,20 +215,23 @@ public class ClientService : IClientService
         return imported;
     }
 
-    private async Task<(int InvoiceCount, decimal TotalSpent, DateTime? LastInvoiceDate)> ComputeStatsAsync(Guid clientId, CancellationToken ct)
+    private async Task<(int InvoiceCount, decimal TotalSpent, decimal Outstanding, DateTime? LastInvoiceDate)> ComputeStatsAsync(Guid clientId, CancellationToken ct)
     {
         var invoices = await _context.Invoices.AsNoTracking()
             .Where(i => i.ClientId == clientId)
-            .Select(i => new { i.InvoiceDate, i.TotalTTC, i.Status })
+            .Select(i => new { i.InvoiceDate, i.TotalTTC, i.SoldeRestant, i.Status })
             .ToListAsync(ct);
 
         var count = invoices.Count;
         var spent = invoices
             .Where(i => i.Status != InvoiceStatus.Annulee)
             .Sum(i => i.TotalTTC);
+        var outstanding = invoices
+            .Where(i => i.Status != InvoiceStatus.Annulee && i.Status != InvoiceStatus.Brouillon)
+            .Sum(i => i.SoldeRestant);
         var last = invoices.OrderByDescending(i => i.InvoiceDate).FirstOrDefault()?.InvoiceDate;
 
-        return (count, spent, last);
+        return (count, spent, outstanding, last);
     }
 
     private static void Apply(CreateClientRequest request, Client client)

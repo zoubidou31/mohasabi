@@ -14,6 +14,8 @@ namespace Factur.Infrastructure.Services;
 
 public class InvoiceService : IInvoiceService
 {
+    private const int MaxNumberingRetries = 5;
+
     private readonly ApplicationDbContext _context;
     private readonly IValidator<CreateInvoiceRequest> _validator;
     private readonly IAuditLogger _auditLogger;
@@ -28,6 +30,23 @@ public class InvoiceService : IInvoiceService
     }
 
     public async Task<InvoiceDto> CreateAsync(CreateInvoiceRequest request, CancellationToken ct = default)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await CreateCoreAsync(request, ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueNumberViolation(ex) && attempt < MaxNumberingRetries)
+            {
+                // Collision sur le numéro de facture (création concurrente) : on
+                // relance l'attribution du numéro puis on réessaie l'enregistrement.
+                _context.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<InvoiceDto> CreateCoreAsync(CreateInvoiceRequest request, CancellationToken ct)
     {
         await _validator.ValidateAndThrowAsync(request, ct);
 
@@ -256,6 +275,21 @@ public class InvoiceService : IInvoiceService
 
     public async Task<InvoiceDto> DuplicateAsync(Guid id, CancellationToken ct = default)
     {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await DuplicateCoreAsync(id, ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueNumberViolation(ex) && attempt < MaxNumberingRetries)
+            {
+                _context.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<InvoiceDto> DuplicateCoreAsync(Guid id, CancellationToken ct)
+    {
         var source = await LoadAsync(id, ct);
         var company = await _context.Companies.OrderBy(c => c.CreatedDate).FirstAsync(ct);
 
@@ -308,6 +342,21 @@ public class InvoiceService : IInvoiceService
     }
 
     public async Task<InvoiceDto> CreateCreditNoteAsync(Guid id, CancellationToken ct = default)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await CreateCreditNoteCoreAsync(id, ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueNumberViolation(ex) && attempt < MaxNumberingRetries)
+            {
+                _context.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<InvoiceDto> CreateCreditNoteCoreAsync(Guid id, CancellationToken ct)
     {
         var source = await LoadAsync(id, ct);
         var company = await _context.Companies.OrderBy(c => c.CreatedDate).FirstAsync(ct);
@@ -471,6 +520,21 @@ public class InvoiceService : IInvoiceService
     // ---------------------------------------------------------------- privé
 
     private Guid? CurrentUserId => _currentUser.UserId;
+
+    /// <summary>
+    /// Détecte une violation de la contrainte UNIQUE du numéro de facture
+    /// (créations concurrentes) afin de pouvoir relancer l'attribution du numéro.
+    /// </summary>
+    private static bool IsUniqueNumberViolation(DbUpdateException ex)
+    {
+        var inner = ex.GetBaseException();
+        if (inner is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 2067 })
+        {
+            return true;
+        }
+
+        return inner?.Message.IndexOf("UNIQUE", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
 
     private static string FormatNumber(string prefix, DateTime date, int sequence) =>
         $"{prefix}-{date:yyyy-MM}-{sequence:000000}";

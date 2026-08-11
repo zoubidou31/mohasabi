@@ -68,8 +68,10 @@ public interface IInvoiceService
 public interface IReportService
 {
     Task<MonthlyReportDto> GetMonthlyReportAsync(int year, int month, CancellationToken ct = default);
+    Task<PagedResult<InvoiceSummaryDto>> GetMonthlyInvoicesPagedAsync(int year, int month, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<TVAReportDto> GetTVAReportAsync(DateTime? from, DateTime? to, CancellationToken ct = default);
     Task<IReadOnlyList<InvoiceSummaryDto>> GetUnpaidInvoicesAsync(DateTime? asOf = null, CancellationToken ct = default);
+    Task<PagedResult<InvoiceSummaryDto>> GetUnpaidPagedAsync(int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<IReadOnlyList<TopClientDto>> GetTopClientsAsync(int count = 10, DateTime? from = null, DateTime? to = null, CancellationToken ct = default);
     Task<IReadOnlyList<YearlyPointDto>> GetYearlyTotalsAsync(int year, CancellationToken ct = default);
 }
@@ -111,6 +113,7 @@ public interface IUpdateService
     string CurrentVersion { get; }
     Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default);
     Task<string> DownloadInstallerAsync(string downloadUrl, string? expectedSha256 = null, CancellationToken ct = default);
+    UpdateInstallStatusDto GetInstallStatus();
 }
 
 /// <summary>Préférences générales persistées (page Options).</summary>

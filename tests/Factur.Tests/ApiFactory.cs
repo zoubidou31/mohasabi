@@ -1,8 +1,10 @@
+using Factur.Domain.Entities;
 using Factur.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Factur.Tests;
 
@@ -31,6 +33,10 @@ public class ApiFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite($"Data Source={_dbPath}"));
+
+            // La société est normalement saisie par l'utilisateur : les tests
+            // d'intégration ont besoin d'une société par défaut pour exister.
+            services.AddHostedService<TestSeedHostedService>();
         });
     }
 
@@ -45,5 +51,34 @@ public class ApiFactory : WebApplicationFactory<Program>
         {
             // Les fichiers temporaires de test sont nettoyés au mieux.
         }
+    }
+
+    /// <summary>Sème une société par défaut dans la base de tests au démarrage de l'hôte.</summary>
+    private sealed class TestSeedHostedService : IHostedService
+    {
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        public TestSeedHostedService(IServiceScopeFactory scopeFactory)
+        {
+            _scopeFactory = scopeFactory;
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            if (!await context.Companies.AnyAsync(cancellationToken))
+            {
+                context.Companies.Add(new Company
+                {
+                    CompanyName = "Ma Société",
+                    InvoicePrefix = "FAC",
+                    ValidityDays = 30,
+                });
+                await context.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

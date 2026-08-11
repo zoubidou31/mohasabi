@@ -34,11 +34,96 @@ public class UpdateManifest
     public string? DownloadUrl { get; init; }
     public string? Sha256 { get; init; }
     public string? ReleaseNotes { get; init; }
+    public long? SizeBytes { get; init; }
+}
+
+/// <summary>Phases d'une installation de mise à jour.</summary>
+public enum UpdateInstallPhase
+{
+    Idle = 0,
+    Downloading = 1,
+    Verifying = 2,
+    Launching = 3,
+    Failed = 4,
+}
+
+/// <summary>Traceur en mémoire de l'installation en cours, interrogé par le front.</summary>
+public static class UpdateInstallTracker
+{
+    private static readonly object Gate = new();
+
+    public static UpdateInstallPhase Phase { get; private set; } = UpdateInstallPhase.Idle;
+    public static long DownloadedBytes { get; private set; }
+    public static long? TotalBytes { get; private set; }
+    public static string? Message { get; private set; }
+    public static string? Error { get; private set; }
+
+    public static void Reset()
+    {
+        lock (Gate)
+        {
+            Phase = UpdateInstallPhase.Idle;
+            DownloadedBytes = 0;
+            TotalBytes = null;
+            Message = null;
+            Error = null;
+        }
+    }
+
+    public static void Set(UpdateInstallPhase phase, string? message = null)
+    {
+        lock (Gate)
+        {
+            Phase = phase;
+            if (!string.IsNullOrWhiteSpace(message)) Message = message;
+        }
+    }
+
+    public static void SetProgress(long downloaded, long? total, string? message)
+    {
+        lock (Gate)
+        {
+            DownloadedBytes = downloaded;
+            TotalBytes = total;
+            if (!string.IsNullOrWhiteSpace(message)) Message = message;
+        }
+    }
+
+    public static void Fail(string error)
+    {
+        lock (Gate)
+        {
+            Phase = UpdateInstallPhase.Failed;
+            Error = error;
+        }
+    }
+
+    public static UpdateInstallStatusDto Snapshot()
+    {
+        lock (Gate)
+        {
+            var percent = TotalBytes is > 0
+                ? (int)Math.Clamp(DownloadedBytes * 100 / TotalBytes.Value, 0, 100)
+                : (int?)null;
+
+            return new UpdateInstallStatusDto
+            {
+                Phase = Phase.ToString().ToLowerInvariant(),
+                DownloadedBytes = DownloadedBytes,
+                TotalBytes = TotalBytes,
+                Percent = percent,
+                Message = Message,
+                Error = Error,
+            };
+        }
+    }
 }
 
 /// <summary>Vérifie et prépare les mises à jour de l'application.</summary>
 public class UpdateService : IUpdateService
 {
+    private const int CopyBufferSize = 128 * 1024;
+
     private static readonly HttpClient Http = new()
     {
         Timeout = TimeSpan.FromSeconds(60),
@@ -52,6 +137,8 @@ public class UpdateService : IUpdateService
     }
 
     public string CurrentVersion => GetCurrentVersion();
+
+    public UpdateInstallStatusDto GetInstallStatus() => UpdateInstallTracker.Snapshot();
 
     public async Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
     {
@@ -97,6 +184,7 @@ public class UpdateService : IUpdateService
                 DownloadUrl = manifest.DownloadUrl,
                 Sha256 = manifest.Sha256,
                 ReleaseNotes = manifest.ReleaseNotes,
+                SizeBytes = manifest.SizeBytes,
                 Success = true,
             };
         }
@@ -139,7 +227,7 @@ public class UpdateService : IUpdateService
             || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal);
     }
 
-    public async Task<string> DownloadInstallerAsync(string downloadUrl, string expectedSha256, CancellationToken ct = default)
+    public async Task<string> DownloadInstallerAsync(string downloadUrl, string? expectedSha256, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
@@ -167,23 +255,42 @@ public class UpdateService : IUpdateService
 
         var target = Path.Combine(dir, fileName);
 
+        UpdateInstallTracker.Reset();
+        UpdateInstallTracker.Set(UpdateInstallPhase.Downloading, "Téléchargement de la mise à jour…");
+
         using var response = await Http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
+
+        var totalBytes = response.Content.Headers.ContentLength;
+        UpdateInstallTracker.SetProgress(0, totalBytes, "Téléchargement de la mise à jour…");
 
         await using var source = await response.Content.ReadAsStreamAsync(ct);
         await using (var output = File.Create(target))
         {
-            await source.CopyToAsync(output, ct);
+            var buffer = new byte[CopyBufferSize];
+            long downloaded = 0;
+            while (true)
+            {
+                var read = await source.ReadAsync(buffer, ct);
+                if (read <= 0) break;
+                await output.WriteAsync(buffer.AsMemory(0, read), ct);
+                downloaded += read;
+                UpdateInstallTracker.SetProgress(downloaded, totalBytes, "Téléchargement de la mise à jour…");
+            }
         }
+
+        UpdateInstallTracker.Set(UpdateInstallPhase.Verifying, "Vérification de l'intégrité du fichier…");
 
         var actualSha256 = await ComputeSha256Async(target, ct);
         if (!string.Equals(actualSha256, expectedSha256, StringComparison.OrdinalIgnoreCase))
         {
-            File.Delete(target);
+            try { File.Delete(target); } catch { /* Ignoré. */ }
+            UpdateInstallTracker.Fail("Intégrité du fichier de mise à jour invalide : l'empreinte SHA-256 ne correspond pas au manifest.");
             throw new InvalidOperationException(
                 "Intégrité du fichier de mise à jour invalide : l'empreinte SHA-256 ne correspond pas au manifest.");
         }
 
+        UpdateInstallTracker.Set(UpdateInstallPhase.Launching, "Démarrage de l'installation…");
         return target;
     }
 

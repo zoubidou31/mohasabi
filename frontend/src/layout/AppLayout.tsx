@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   AppBar,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Drawer,
+  FormControlLabel,
   IconButton,
+  LinearProgress,
   List,
   Menu,
   MenuItem,
@@ -31,8 +34,9 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import { useUpdateStore } from '../stores/updateStore';
+import { useUpdateStore, type UpdateInstallStatus } from '../stores/updateStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { dispatchShortcut, SHORTCUT_EVENTS, useGlobalShortcuts } from '../utils/shortcuts';
 
 const navItems = [
   { key: 'invoices', icon: FileText, path: '/invoices' },
@@ -40,6 +44,54 @@ const navItems = [
   { key: 'products', icon: Package, path: '/products' },
   { key: 'reports', icon: WalletCards, path: '/reports' },
 ];
+
+// Répare le double encodage (« Ã© » → « é ») si la source du manifest a été
+// lue comme Latin-1 alors qu'elle était UTF-8. Ne modifie rien sinon.
+function fixEncoding(text: string): string {
+  if (!/[\u00C0-\u00FF]/.test(text)) return text;
+  try {
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (code > 0xff) return text;
+      bytes[i] = code;
+    }
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return decoded.includes('\uFFFD') ? text : decoded;
+  } catch {
+    return text;
+  }
+}
+
+// Extrait 3 à 6 puces lisibles depuis les notes de version brutes (markdown/plain).
+function parseReleaseNotes(raw?: string): string[] {
+  if (!raw) return [];
+  return fixEncoding(raw)
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^[-*+•]\s+/, '')
+        .replace(/^#+\s*/, '')
+        .replace(/\*\*/g, '')
+        .trim(),
+    )
+    .filter((line) => line.length > 0)
+    .slice(0, 6);
+}
+
+function formatBytes(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
+}
+
+function formatEta(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return '…';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m} min ${s} s` : `${s} s`;
+}
 
 export default function AppLayout() {
   const { t, i18n } = useTranslation();
@@ -56,17 +108,24 @@ export default function AppLayout() {
     latestVersion,
     currentVersion,
     releaseNotes,
+    sizeBytes,
     checked,
     dialogOpen,
     dismissed,
     installing,
     installError,
+    installStatus,
     setUpdate,
     openDialog,
     dismissDialog,
+    setInstallStatus,
     installNow,
   } = useUpdateStore();
   const [appVersion, setAppVersion] = useState('');
+  const [launchAfterUpdate, setLaunchAfterUpdate] = useState(true);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  const installStartedAt = useRef(0);
+  const notes = parseReleaseNotes(releaseNotes);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +182,43 @@ export default function AppLayout() {
     };
   }, []);
 
+  // Pendant le téléchargement, interroge l'état de l'installation pour afficher
+  // la progression (pourcentage, octets, temps restant estimé, statut).
+  useEffect(() => {
+    if (!installing) return;
+    let cancelled = false;
+    const started = installStartedAt.current;
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const { data } = await api.get<UpdateInstallStatus>('/update/install/status');
+        if (cancelled) return;
+        setInstallStatus(data);
+        if (data.totalBytes && data.downloadedBytes > 0 && started > 0) {
+          const elapsed = (Date.now() - started) / 1000;
+          if (elapsed > 0) {
+            const speed = data.downloadedBytes / elapsed;
+            const remaining = (data.totalBytes - data.downloadedBytes) / speed;
+            setEtaSeconds(remaining > 0 ? Math.ceil(remaining) : 0);
+          }
+        }
+      } catch {
+        // Serveur momentanément indisponible : ignoré.
+      }
+    };
+    const id = window.setInterval(() => void tick(), 600);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [installing, setInstallStatus]);
+
+  const handleInstall = () => {
+    installStartedAt.current = Date.now();
+    setEtaSeconds(null);
+    void installNow(launchAfterUpdate);
+  };
+
   useEffect(() => {
     const item = navItems.find((it) => location.pathname.startsWith(it.path));
     const page = item ? t(`nav.${item.key}`) : '';
@@ -133,6 +229,17 @@ export default function AppLayout() {
     setNotifAnchor(null);
     navigate('/options');
   };
+
+  // Raccourcis clavier globaux : Ctrl+N / Ctrl+J (nouvelle facture),
+  // Ctrl+S (enregistrer, relayé aux formulaires), Ctrl+F (rechercher).
+  useGlobalShortcuts({
+    onNewInvoice: () => {
+      navigate('/invoices/new');
+      setMobileOpen(false);
+    },
+    onSave: () => dispatchShortcut(SHORTCUT_EVENTS.SAVE),
+    onFocusSearch: () => dispatchShortcut(SHORTCUT_EVENTS.FOCUS_SEARCH),
+  });
 
   const navContent = (isMobile: boolean) => (
     <Box
@@ -194,6 +301,16 @@ export default function AppLayout() {
     </Box>
   );
 
+  const percent = installStatus?.percent ?? null;
+  const installPhaseLabel =
+    installStatus?.phase === 'downloading'
+      ? t('update.downloading', { percent: percent ?? 0 })
+      : installStatus?.phase === 'verifying'
+        ? t('update.verifying')
+        : installStatus?.phase === 'launching'
+          ? t('update.launching')
+          : '';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="fixed" elevation={0} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
@@ -204,7 +321,7 @@ export default function AppLayout() {
             gap: { xs: 1.5, md: 3 },
             borderBottom: '1px solid',
             borderColor: 'divider',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'background.paper',
           }}
         >
           {/* Desktop nav */}
@@ -228,7 +345,8 @@ export default function AppLayout() {
                       display: 'grid',
                       placeItems: 'center',
                       backgroundColor: 'error.main',
-                      border: '2px solid #fff',
+                      border: '2px solid',
+                      borderColor: 'background.paper',
                       fontSize: 9,
                       fontWeight: 800,
                       color: '#fff',
@@ -372,13 +490,14 @@ export default function AppLayout() {
         {appVersion ? `Mohasabi v${appVersion}` : 'Mohasabi'}
       </Box>
 
-      {/* Boîte de dialogue de mise à jour : purement informative, affichée après
-          la vérification. « Plus tard » ne télécharge ni n'installe rien.
+      {/* Boîte de dialogue de mise à jour : version actuelle / nouvelle version,
+          taille, temps estimé, nouveautés (puces), progression du téléchargement
+          et choix de relance. « Plus tard » ne télécharge ni n'installe rien.
           « Mettre à jour » télécharge, vérifie l'empreinte SHA-256 côté API,
-          puis installe et redémarre l'application. */}
+          puis installe (avec relance automatique selon la case cochée). */}
       <Dialog open={dialogOpen} onClose={installing ? undefined : dismissDialog}>
         <DialogTitle sx={{ fontWeight: 700 }}>{t('update.dialogTitle')}</DialogTitle>
-        <DialogContent sx={{ minWidth: 380 }}>
+        <DialogContent sx={{ minWidth: 400 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
             <Typography variant="body2">
               <Box component="span" sx={{ fontWeight: 600 }}>
@@ -392,30 +511,79 @@ export default function AppLayout() {
               </Box>
               {latestVersion}
             </Typography>
-            {latestVersion && releaseNotes && (
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                {releaseNotes}
-              </Typography>
+            <Typography variant="body2">
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                {t('update.size')} :{' '}
+              </Box>
+              {formatBytes(sizeBytes) || (installStatus?.totalBytes ? formatBytes(installStatus.totalBytes) : '—')}
+            </Typography>
+            {notes.length > 0 && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  {t('update.whatNew')}
+                </Typography>
+                {notes.map((note, idx) => (
+                  <Typography key={idx} component="li" variant="body2" sx={{ color: 'text.secondary', ml: 2, fontSize: 13 }}>
+                    {note}
+                  </Typography>
+                ))}
+              </Box>
             )}
           </Box>
+
+          {installing && (
+            <Box sx={{ mt: 1.5, mb: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {installPhaseLabel || (installStatus?.message ?? '')}
+                </Typography>
+                {etaSeconds !== null && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t('update.estimatedTime')} : {formatEta(etaSeconds)}
+                  </Typography>
+                )}
+              </Box>
+              {percent !== null ? (
+                <LinearProgress variant="determinate" value={percent} sx={{ height: 8, borderRadius: 4 }} />
+              ) : (
+                <LinearProgress sx={{ height: 8, borderRadius: 4 }} />
+              )}
+              {installStatus && (installStatus.downloadedBytes > 0 || installStatus.totalBytes) && (
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                  {t('update.progressStatus', {
+                    downloaded: formatBytes(installStatus.downloadedBytes),
+                    total: formatBytes(installStatus.totalBytes),
+                  })}
+                </Typography>
+              )}
+            </Box>
+          )}
+
           {installError && (
             <Alert severity="error" sx={{ mb: 1.5, '& .MuiAlert-message': { fontSize: 13 } }}>
               {installError}
             </Alert>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button variant="outlined" onClick={dismissDialog} disabled={installing}>
-            {t('update.plusTard')}
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={installing ? <CircularProgress size={16} color="inherit" /> : undefined}
-            disabled={installing}
-            onClick={() => void installNow()}
-          >
-            {t('update.mettreAJour')}
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 2, flexDirection: 'column', alignItems: 'stretch', gap: 0.5 }}>
+          <FormControlLabel
+            control={<Checkbox checked={launchAfterUpdate} onChange={(e) => setLaunchAfterUpdate(e.target.checked)} disabled={installing} />}
+            label={<Typography variant="body2">{t('update.launchAfterUpdate')}</Typography>}
+            sx={{ ml: 0 }}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+            <Button variant="outlined" onClick={dismissDialog} disabled={installing}>
+              {t('update.plusTard')}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={installing ? <CircularProgress size={16} color="inherit" /> : undefined}
+              disabled={installing}
+              onClick={handleInstall}
+            >
+              {t('update.mettreAJour')}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
     </Box>

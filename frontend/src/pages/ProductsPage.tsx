@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Autocomplete,
   Box,
@@ -29,6 +29,7 @@ import type { Product, TVARate, Category, PagedResult } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 import { validateProductReference, validateProductName, validateProductPrice, type ValidationErrors } from '../utils/companyValidation';
 
 const emptyForm = {
@@ -55,6 +56,9 @@ export default function ProductsPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [reload, setReload] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
 
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [catForm, setCatForm] = useState({ name: '', description: '' });
@@ -197,6 +201,7 @@ export default function ProductsPage() {
 
       <Card sx={{ p: 2, mb: 3 }}>
         <TextField
+          inputRef={searchRef}
           label={t('common.search')}
           value={search}
           onChange={(e) => {

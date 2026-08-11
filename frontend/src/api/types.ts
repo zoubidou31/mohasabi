@@ -25,6 +25,7 @@ export interface Client {
   createdDate: string;
   invoiceCount: number;
   totalSpent: number;
+  outstanding?: number;
   lastInvoiceDate?: string;
 }
 

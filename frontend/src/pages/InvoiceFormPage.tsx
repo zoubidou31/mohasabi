@@ -28,6 +28,7 @@ import { api, extractError } from '../api/client';
 import type { Client, Invoice, InvoiceType, PaymentMethod, Product, TVARate } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 import SearchSelect from '../components/SearchSelect';
 
 interface LineForm {
@@ -155,6 +156,10 @@ export default function InvoiceFormPage() {
       setBusy(false);
     }
   };
+
+  useShortcutEvent(SHORTCUT_EVENTS.SAVE, () => {
+    if (!busy) void submit();
+  });
 
   return (
     <Box>

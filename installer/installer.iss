@@ -96,7 +96,7 @@ Name: "{userdesktop}\Mohasabi"; Filename: "{app}\{#AppExeName}"; IconFilename: "
 [Run]
 Filename: "{tmp}\{#WebView2InstallerExe}"; Parameters: "/silent /install"; StatusMsg: "Installation de Microsoft Edge WebView2 Runtime..."; Flags: runhidden waituntilterminated skipifdoesntexist; Check: IsWebView2Missing
 
-Filename: "{app}\{#AppExeName}"; Description: "Démarrer Mohasabi"; WorkingDir: "{app}"; Flags: nowait postinstall
+Filename: "{app}\{#AppExeName}"; Description: "Démarrer Mohasabi"; WorkingDir: "{app}"; Flags: nowait postinstall; Check: ShouldLaunchApp
 
 
 [Code]
@@ -123,4 +123,11 @@ begin
   end;
 
   Result := True;
+end;
+
+// Évite de relancer Mohasabi en fin d'installation lorsque l'option
+// /NOLAUNCH est passée (mise à jour programmée sans redémarrage automatique).
+function ShouldLaunchApp(): Boolean;
+begin
+  Result := not CmdLineParamExists('/NOLAUNCH');
 end;

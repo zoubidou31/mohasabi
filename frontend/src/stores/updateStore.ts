@@ -6,11 +6,21 @@ export interface UpdateInfo {
   latestVersion?: string;
   releaseNotes?: string;
   currentVersion?: string;
+  sizeBytes?: number | null;
 }
 
 export interface UpdateInstallResult {
   message?: string;
   restarting?: boolean;
+}
+
+export interface UpdateInstallStatus {
+  phase: string;
+  downloadedBytes: number;
+  totalBytes?: number | null;
+  percent?: number | null;
+  message?: string;
+  error?: string;
 }
 
 interface UpdateState extends UpdateInfo {
@@ -19,10 +29,12 @@ interface UpdateState extends UpdateInfo {
   dismissed: boolean;
   installing: boolean;
   installError: string;
+  installStatus: UpdateInstallStatus | null;
   setUpdate: (info: UpdateInfo) => void;
   openDialog: () => void;
   dismissDialog: () => void;
-  installNow: () => Promise<UpdateInstallResult | undefined>;
+  setInstallStatus: (status: UpdateInstallStatus | null) => void;
+  installNow: (launchAfterUpdate?: boolean) => Promise<UpdateInstallResult | undefined>;
   reset: () => void;
 }
 
@@ -31,19 +43,22 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   latestVersion: undefined,
   releaseNotes: undefined,
   currentVersion: undefined,
+  sizeBytes: undefined,
   checked: false,
   dialogOpen: false,
   dismissed: false,
   installing: false,
   installError: '',
+  installStatus: null,
   setUpdate: (info) => set({ ...info, checked: true }),
   openDialog: () => set({ dialogOpen: true }),
   dismissDialog: () => set({ dialogOpen: false, dismissed: true }),
-  installNow: async () => {
+  setInstallStatus: (status) => set({ installStatus: status }),
+  installNow: async (launchAfterUpdate = true) => {
     if (get().installing) return undefined;
-    set({ installing: true, installError: '' });
+    set({ installing: true, installError: '', installStatus: null });
     try {
-      const { data } = await api.post<UpdateInstallResult>('/update/install', {});
+      const { data } = await api.post<UpdateInstallResult>('/update/install', { launchAfterUpdate });
       set({ dialogOpen: false });
       return data;
     } catch (err) {
@@ -59,10 +74,12 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       latestVersion: undefined,
       releaseNotes: undefined,
       currentVersion: undefined,
+      sizeBytes: undefined,
       checked: false,
       dialogOpen: false,
       dismissed: false,
       installing: false,
       installError: '',
+      installStatus: null,
     }),
 }));

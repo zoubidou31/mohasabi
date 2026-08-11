@@ -1,3 +1,17 @@
+:root {
+  --moha-bg: #f7f9fb;
+  --moha-text: #1f2937;
+  --moha-scrollbar: #cdd5dd;
+  --moha-scrollbar-hover: #b3bcc6;
+}
+
+.dark {
+  --moha-bg: #0f1419;
+  --moha-text: #f3f4f6;
+  --moha-scrollbar: #3a4450;
+  --moha-scrollbar-hover: #4b5765;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -10,8 +24,8 @@ body,
 
 body {
   margin: 0;
-  background: #f7f9fb;
-  color: #1f2937;
+  background: var(--moha-bg);
+  color: var(--moha-text);
   font-family:
     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
     Arial, sans-serif;
@@ -27,18 +41,18 @@ body {
 /* Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cdd5dd transparent;
+  scrollbar-color: var(--moha-scrollbar) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #cdd5dd;
+  background: var(--moha-scrollbar);
   border-radius: 8px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #b3bcc6;
+  background: var(--moha-scrollbar-hover);
 }
 *::-webkit-scrollbar-track {
   background: transparent;

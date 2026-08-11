@@ -7,7 +7,7 @@ namespace Factur.Application.Common.Mapping;
 /// <summary>Conversions entités → DTO (manuel, sans reflexion).</summary>
 public static class Mapper
 {
-    public static ClientDto ToDto(this Client client, int invoiceCount = 0, decimal totalSpent = 0, DateTime? lastInvoiceDate = null) => new()
+    public static ClientDto ToDto(this Client client, int invoiceCount = 0, decimal totalSpent = 0, decimal outstanding = 0, DateTime? lastInvoiceDate = null) => new()
     {
         Id = client.Id,
         DisplayName = client.DisplayName,
@@ -30,6 +30,7 @@ public static class Mapper
         IsActive = client.IsActive,
         InvoiceCount = invoiceCount,
         TotalSpent = totalSpent,
+        Outstanding = outstanding,
         LastInvoiceDate = lastInvoiceDate,
     };
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -13,7 +13,6 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -27,6 +26,8 @@ import { formatCurrency, formatDate } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import SearchSelect from '../components/SearchSelect';
 import StatusBadge from '../components/StatusBadge';
+import TablePaginationBar from '../components/TablePaginationBar';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
@@ -37,9 +38,12 @@ export default function InvoicesPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [date, setDate] = useState('');
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(7);
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -84,9 +88,10 @@ export default function InvoicesPage() {
         }
       />
 
-      <Card sx={{ p: 2, mb: 3, backgroundColor: '#FFFFFF' }}>
+      <Card sx={{ p: 2, mb: 3, backgroundColor: 'background.paper' }}>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
+            inputRef={searchRef}
             label={t('common.search')}
             value={search}
             onChange={(e) => {
@@ -225,19 +230,15 @@ export default function InvoicesPage() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
+        <TablePaginationBar
           count={data?.totalCount ?? 0}
           page={page}
-          onPageChange={(_, p) => setPage(p)}
+          onPageChange={setPage}
           rowsPerPage={pageSize}
-          onRowsPerPageChange={(e) => {
-            setPageSize(parseInt(e.target.value, 10));
+          onRowsPerPageChange={(size) => {
+            setPageSize(size);
             setPage(0);
           }}
-          labelRowsPerPage={t('common.rowsPerPage')}
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          sx={{ borderTop: '1px solid', borderColor: 'divider' }}
         />
       </TableContainer>
     </Box>
