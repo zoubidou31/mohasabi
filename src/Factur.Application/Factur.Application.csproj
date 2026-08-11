@@ -9,6 +9,13 @@
     <ProjectReference Include="..\Factur.Domain\Factur.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Source unique des localités algériennes (wilayas, communes, codes postaux Algérie Poste).
+         Le fichier vit dans frontend/src/data (consommé par l'UI) et est embarqué ici pour
+         que le backend partage exactement le même jeu de données. -->
+    <EmbeddedResource Include="..\..\frontend\src\data\algeriaLocations.json" Link="Data\algeriaLocations.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
