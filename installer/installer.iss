@@ -128,6 +128,16 @@ end;
 // Évite de relancer Mohasabi en fin d'installation lorsque l'option
 // /NOLAUNCH est passée (mise à jour programmée sans redémarrage automatique).
 function ShouldLaunchApp(): Boolean;
+var
+  I: Integer;
 begin
-  Result := not CmdLineParamExists('/NOLAUNCH');
+  Result := True;
+  for I := 1 to ParamCount do
+  begin
+    if LowerCase(ParamStr(I)) = '/nolaunch' then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
 end;
