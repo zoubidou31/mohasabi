@@ -30,6 +30,7 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useTheme,
 } from '@mui/material';
 import {
   Building2,
@@ -51,12 +52,14 @@ import type { AppSettings, BackupInfo, BackupRunResult, BackupStatus, RestoreRes
 import { formatDateTime, formatNumber } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import { useSettingsStore } from '../stores/settingsStore';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 
 const frequencyOptions = [5, 15, 30, 60, 360, 1440];
 const retentionOptions = [0, 3, 5, 10];
 
 export default function OptionsPage() {
   const { t } = useTranslation();
+  const theme = useTheme();
   const navigate = useNavigate();
 
   const settings = useSettingsStore((s) => s.settings);
@@ -123,6 +126,10 @@ export default function OptionsPage() {
       setSaving(false);
     }
   };
+
+  useShortcutEvent(SHORTCUT_EVENTS.SAVE, () => {
+    if (dirty) void handleSave();
+  });
 
   const handleBackupNow = async () => {
     setBackingUp(true);
@@ -210,7 +217,7 @@ export default function OptionsPage() {
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-              <Palette size={18} style={{ color: 'primary.main' }} />
+              <Palette size={18} color={theme.palette.primary.main} />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 {t('options.general.title')}
               </Typography>
@@ -394,7 +401,7 @@ export default function OptionsPage() {
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-              <Building2 size={18} style={{ color: 'primary.main' }} />
+              <Building2 size={18} color={theme.palette.primary.main} />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 {t('options.company.title')}
               </Typography>
@@ -423,7 +430,13 @@ export default function OptionsPage() {
             <List dense disablePadding>
               <ListItem disableGutters>
                 <ListItemIcon sx={{ minWidth: 34 }}>
-                  <Chip size="small" label="Ctrl" />
+                  <Chip size="small" label="Ctrl + N" />
+                </ListItemIcon>
+                <ListItemText primary={t('options.shortcuts.newInvoice')} />
+              </ListItem>
+              <ListItem disableGutters>
+                <ListItemIcon sx={{ minWidth: 34 }}>
+                  <Chip size="small" label="Ctrl + J" />
                 </ListItemIcon>
                 <ListItemText primary={t('options.shortcuts.newInvoice')} />
               </ListItem>

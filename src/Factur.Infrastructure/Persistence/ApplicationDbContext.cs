@@ -54,6 +54,13 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => x.InvoiceNumber).IsUnique();
             e.HasIndex(x => x.InvoiceDate);
             e.HasIndex(x => x.Status);
+            // Index composites (coût de pagination / rapports) :
+            // - ordre de tri par défaut (date + séquence) et MAX(Séquence) du mois ;
+            // - filtre « impayés » (statuts exclus + date d'échéance) ;
+            // - rapports mensuels (date + statut).
+            e.HasIndex(x => new { x.InvoiceDate, x.Sequence });
+            e.HasIndex(x => new { x.DueDate, x.Status });
+            e.HasIndex(x => new { x.InvoiceDate, x.Status });
             e.Property(x => x.InvoiceNumber).HasMaxLength(64);
             e.HasOne(x => x.Client).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);

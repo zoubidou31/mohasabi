@@ -19,10 +19,11 @@ import {
 import { AlertTriangle, Banknote, FileText, Percent, Receipt, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
-import type { InvoiceSummary, MonthlyReport, TVAReport } from '../api/types';
+import type { InvoiceSummary, MonthlyReport, PagedResult, TVAReport } from '../api/types';
 import { formatCurrency, formatDate } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
+import TablePaginationBar from '../components/TablePaginationBar';
 
 const reportCards: { key: string; labelKey: string; icon: typeof FileText; tone: string }[] = [
   { key: 'invoiceCount', labelKey: 'reports.invoiceCount', icon: Receipt, tone: '#157347' },
@@ -39,20 +40,31 @@ export default function ReportsPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [report, setReport] = useState<MonthlyReport | null>(null);
-  const [unpaid, setUnpaid] = useState<InvoiceSummary[]>([]);
+  const [monthlyInvoices, setMonthlyInvoices] = useState<PagedResult<InvoiceSummary> | null>(null);
+  const [monthlyPage, setMonthlyPage] = useState(0);
+  const [monthlyPageSize, setMonthlyPageSize] = useState(7);
+  const [unpaid, setUnpaid] = useState<PagedResult<InvoiceSummary> | null>(null);
+  const [unpaidPage, setUnpaidPage] = useState(0);
+  const [unpaidPageSize, setUnpaidPageSize] = useState(7);
 
   const load = useCallback(async () => {
     try {
-      const [{ data: monthly }, { data: unpaidList }] = await Promise.all([
+      const [{ data: monthly }, { data: monthlyList }, { data: unpaidList }] = await Promise.all([
         api.get<MonthlyReport>('/reports/monthly', { params: { year, month } }),
-        api.get<InvoiceSummary[]>('/reports/unpaid'),
+        api.get<PagedResult<InvoiceSummary>>('/reports/monthly/invoices', {
+          params: { year, month, page: monthlyPage + 1, pageSize: monthlyPageSize },
+        }),
+        api.get<PagedResult<InvoiceSummary>>('/reports/unpaid/paged', {
+          params: { page: unpaidPage + 1, pageSize: unpaidPageSize },
+        }),
       ]);
       setReport(monthly);
+      setMonthlyInvoices(monthlyList);
       setUnpaid(unpaidList);
     } catch {
       // handled silently
     }
-  }, [year, month]);
+  }, [year, month, monthlyPage, monthlyPageSize, unpaidPage, unpaidPageSize]);
 
   useEffect(() => {
     void load();
@@ -68,7 +80,7 @@ export default function ReportsPage() {
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>{t('reports.year')}</InputLabel>
-            <Select label={t('reports.year')} value={year} onChange={(e) => setYear(parseInt(String(e.target.value), 10))}>
+            <Select label={t('reports.year')} value={year} onChange={(e) => { setYear(parseInt(String(e.target.value), 10)); setMonthlyPage(0); }}>
               {years.map((y) => (
                 <MenuItem key={y} value={y}>
                   {y}
@@ -78,7 +90,7 @@ export default function ReportsPage() {
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>{t('reports.month')}</InputLabel>
-            <Select label={t('reports.month')} value={month} onChange={(e) => setMonth(parseInt(String(e.target.value), 10))}>
+            <Select label={t('reports.month')} value={month} onChange={(e) => { setMonth(parseInt(String(e.target.value), 10)); setMonthlyPage(0); }}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <MenuItem key={m} value={m}>
                   {m}
@@ -187,7 +199,7 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {report.invoices.map((inv) => (
+                    {monthlyInvoices?.items.map((inv) => (
                       <TableRow key={inv.id} hover>
                         <TableCell sx={{ fontWeight: 600 }}>{inv.invoiceNumber}</TableCell>
                         <TableCell>{inv.clientName}</TableCell>
@@ -199,7 +211,7 @@ export default function ReportsPage() {
                         <TableCell align="right" className="tnum">{formatCurrency(inv.montantPaye)}</TableCell>
                       </TableRow>
                     ))}
-                    {report.invoices.length === 0 && (
+                    {monthlyInvoices && monthlyInvoices.items.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                           {t('common.none')}
@@ -208,6 +220,16 @@ export default function ReportsPage() {
                     )}
                   </TableBody>
                 </Table>
+                <TablePaginationBar
+                  count={monthlyInvoices?.totalCount ?? 0}
+                  page={monthlyPage}
+                  onPageChange={setMonthlyPage}
+                  rowsPerPage={monthlyPageSize}
+                  onRowsPerPageChange={(size) => {
+                    setMonthlyPageSize(size);
+                    setMonthlyPage(0);
+                  }}
+                />
               </TableContainer>
             </CardContent>
           </Card>
@@ -231,7 +253,7 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {unpaid.map((inv) => (
+                {unpaid?.items.map((inv) => (
                   <TableRow key={inv.id} hover>
                     <TableCell sx={{ fontWeight: 600 }}>{inv.invoiceNumber}</TableCell>
                     <TableCell>{inv.clientName}</TableCell>
@@ -240,7 +262,7 @@ export default function ReportsPage() {
                     <TableCell align="right" className="tnum" sx={{ color: 'error.main', fontWeight: 700 }}>{formatCurrency(inv.soldeRestant)}</TableCell>
                   </TableRow>
                 ))}
-                {unpaid.length === 0 && (
+                {(!unpaid || unpaid.items.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                       {t('common.none')}
@@ -249,6 +271,16 @@ export default function ReportsPage() {
                 )}
               </TableBody>
             </Table>
+            <TablePaginationBar
+              count={unpaid?.totalCount ?? 0}
+              page={unpaidPage}
+              onPageChange={setUnpaidPage}
+              rowsPerPage={unpaidPageSize}
+              onRowsPerPageChange={(size) => {
+                setUnpaidPageSize(size);
+                setUnpaidPage(0);
+              }}
+            />
           </TableContainer>
         </CardContent>
       </Card>

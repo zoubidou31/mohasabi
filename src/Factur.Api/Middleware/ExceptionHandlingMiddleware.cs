@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Factur.Application.Common.Exceptions;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace Factur.Api.Middleware;
 
@@ -38,6 +39,7 @@ public class ExceptionHandlingMiddleware
             BadRequestException => (StatusCodes.Status400BadRequest, exception.Message),
             BusinessRuleException => (StatusCodes.Status400BadRequest, exception.Message),
             ValidationException => (StatusCodes.Status400BadRequest, "Données invalides. Vérifiez les champs du formulaire."),
+            DbUpdateException => (StatusCodes.Status409Conflict, "Enregistrement impossible : une valeur est déjà utilisée. Veuillez réessayer."),
             InvalidOperationException => (StatusCodes.Status400BadRequest, "L'opération demandée est impossible."),
             _ => (StatusCodes.Status500InternalServerError, "Une erreur interne est survenue. Veuillez réessayer."),
         };

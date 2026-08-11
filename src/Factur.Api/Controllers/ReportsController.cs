@@ -24,6 +24,12 @@ public class ReportsController : ControllerBase
         return Ok(await _reportService.GetMonthlyReportAsync(year, month, ct));
     }
 
+    [HttpGet("monthly/invoices")]
+    public async Task<ActionResult<PagedResult<InvoiceSummaryDto>>> MonthlyInvoices([FromQuery] int year, [FromQuery] int month, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        return Ok(await _reportService.GetMonthlyInvoicesPagedAsync(year, month, page, pageSize, ct));
+    }
+
     [HttpGet("monthly/export/pdf")]
     public async Task<IActionResult> MonthlyPdf([FromQuery] int year, [FromQuery] int month, [FromQuery] string? lang, CancellationToken ct)
     {
@@ -62,6 +68,12 @@ public class ReportsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<InvoiceSummaryDto>>> Unpaid(CancellationToken ct)
     {
         return Ok(await _reportService.GetUnpaidInvoicesAsync(ct: ct));
+    }
+
+    [HttpGet("unpaid/paged")]
+    public async Task<ActionResult<PagedResult<InvoiceSummaryDto>>> UnpaidPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        return Ok(await _reportService.GetUnpaidPagedAsync(page, pageSize, ct));
     }
 
     [HttpGet("unpaid/export/pdf")]

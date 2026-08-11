@@ -22,6 +22,7 @@ import {
   Select,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import { Building2, Download, Mail, Phone, RefreshCw, Save, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ import { api, extractError } from '../api/client';
 import type { Company, TVARate } from '../api/types';
 import PageHeader from '../components/PageHeader';
 import { useUpdateStore } from '../stores/updateStore';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 import {
   validateCompanyForm,
   validateNIF,
@@ -117,6 +119,7 @@ const operatorColors: Record<MobileOperator, 'success' | 'info' | 'warning' | 'd
 
 export default function CompanyPage() {
   const { t } = useTranslation();
+  const theme = useTheme();
   const setUpdateStore = useUpdateStore((s) => s.setUpdate);
   const resetUpdateStore = useUpdateStore((s) => s.reset);
   const [form, setForm] = useState<Company>(EMPTY_COMPANY);
@@ -138,6 +141,7 @@ export default function CompanyPage() {
   const [installDialogOpen, setInstallDialogOpen] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installMessage, setInstallMessage] = useState('');
+  const [launchAfterUpdate, setLaunchAfterUpdate] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -205,8 +209,8 @@ export default function CompanyPage() {
     setInstalling(true);
     setInstallMessage('');
     try {
-      await api.post('/update/install', {});
-      setInstallMessage(t('update.downloaded'));
+      await api.post('/update/install', { launchAfterUpdate });
+      setInstallMessage(launchAfterUpdate ? t('update.downloaded') : t('update.downloadedNoRestart'));
       resetUpdateStore();
     } catch (err) {
       setUpdateState({ status: 'error', updateAvailable: true, message: extractError(err) });
@@ -214,7 +218,7 @@ export default function CompanyPage() {
       setInstalling(false);
       setInstallDialogOpen(false);
     }
-  }, [t, resetUpdateStore]);
+  }, [t, resetUpdateStore, launchAfterUpdate]);
 
   const onLogoChange = (file: File | undefined) => {
     if (!file) return;
@@ -315,6 +319,8 @@ export default function CompanyPage() {
     }
   };
 
+  useShortcutEvent(SHORTCUT_EVENTS.SAVE, () => void save());
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 2 }}>
@@ -374,7 +380,7 @@ export default function CompanyPage() {
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
-            <Building2 size={20} style={{ color: '#157347' }} />
+            <Building2 size={20} color={theme.palette.primary.main} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t('company.logo')}
             </Typography>
@@ -395,7 +401,7 @@ export default function CompanyPage() {
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
-            <Building2 size={20} style={{ color: '#157347' }} />
+            <Building2 size={20} color={theme.palette.primary.main} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t('company.companyName')}
             </Typography>
@@ -610,7 +616,7 @@ export default function CompanyPage() {
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
-            <Settings2 size={20} style={{ color: '#157347' }} />
+            <Settings2 size={20} color={theme.palette.primary.main} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t('nav.settings')}
             </Typography>
@@ -779,7 +785,7 @@ export default function CompanyPage() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
-                  <Mail size={17} style={{ color: '#157347', flexShrink: 0 }} />
+                  <Mail size={17} color={theme.palette.primary.main} style={{ flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{t('update.email')}</Typography>
                     <Typography sx={{ fontSize: 13.5, color: 'text.primary', fontWeight: 600, wordBreak: 'break-all' }}>
@@ -788,7 +794,7 @@ export default function CompanyPage() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
-                  <Phone size={17} style={{ color: '#157347', flexShrink: 0 }} />
+                  <Phone size={17} color={theme.palette.primary.main} style={{ flexShrink: 0 }} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{t('update.phone')}</Typography>
                     <Typography sx={{ fontSize: 13.5, color: 'text.primary', fontWeight: 600 }}>0674947157</Typography>
@@ -802,7 +808,7 @@ export default function CompanyPage() {
               <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <RefreshCw size={18} style={{ color: '#157347' }} />
+                    <RefreshCw size={18} color={theme.palette.primary.main} />
                     <Typography sx={{ fontWeight: 700, fontSize: 15 }}>{t('update.title')}</Typography>
                   </Box>
                   {appVersion && (
@@ -832,7 +838,12 @@ export default function CompanyPage() {
                         {t('update.available', { version: updateState.latestVersion })}
                       </Typography>
                       {updateState.releaseNotes && (
-                        <Typography variant="body2" sx={{ fontSize: 12.5 }}>{updateState.releaseNotes}</Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: 12.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        >
+                          {updateState.releaseNotes}
+                        </Typography>
                       )}
                     </Box>
                   </Alert>
@@ -881,7 +892,16 @@ export default function CompanyPage() {
       <Dialog open={installDialogOpen} onClose={() => setInstallDialogOpen(false)}>
         <DialogTitle>{t('update.installTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>{t('update.installBody')}</DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>{t('update.installBody')}</DialogContentText>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={launchAfterUpdate}
+                onChange={(e) => setLaunchAfterUpdate(e.target.checked)}
+              />
+            }
+            label={t('update.installLaunchLabel')}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInstallDialogOpen(false)}>{t('common.cancel')}</Button>

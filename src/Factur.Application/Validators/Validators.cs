@@ -79,10 +79,15 @@ public class CreateClientRequestValidator : AbstractValidator<CreateClientReques
 {
     public CreateClientRequestValidator()
     {
-        RuleFor(x => x.DisplayName).NotEmpty().WithMessage("Le nom du client est obligatoire.");
+        RuleFor(x => x.DisplayName).NotEmpty().WithMessage("Le nom du client est obligatoire.")
+            .MinimumLength(2).WithMessage("Le nom du client doit contenir au moins 2 caractères.");
         RuleFor(x => x.NIF).Matches(@"^\d{13,15}$").When(x => !string.IsNullOrWhiteSpace(x.NIF))
             .WithMessage("Le NIF doit être un nombre de 13 à 15 chiffres.");
         RuleFor(x => x.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse e-mail invalide.");
+        RuleFor(x => x.Phone).Matches(@"^(?:0[567]\d{8}|\d{9})$").When(x => !string.IsNullOrWhiteSpace(x.Phone))
+            .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+        RuleFor(x => x.Mobile).Matches(@"^(?:0[567]\d{8}|\d{9})$").When(x => !string.IsNullOrWhiteSpace(x.Mobile))
+            .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Type).IsInEnum().WithMessage("Type de client invalide.");
     }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -34,6 +34,7 @@ import { WILAYAS } from '../data/algerianData';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
+import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
 
 const emptyForm = {
   displayName: '',
@@ -67,6 +68,9 @@ export default function ClientsPage() {
   const [error, setError] = useState('');
   const [alert, setAlert] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
   const [reload, setReload] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
 
   // Delete-flow state (prevents double submission + shows a confirm step)
   const [confirmClient, setConfirmClient] = useState<Client | null>(null);
@@ -182,6 +186,7 @@ export default function ClientsPage() {
 
       <Card sx={{ p: 2, mb: 3 }}>
         <TextField
+          inputRef={searchRef}
           label={t('common.search')}
           value={search}
           onChange={(e) => {
@@ -239,7 +244,7 @@ export default function ClientsPage() {
                 <TableCell>{c.phone || '—'}</TableCell>
                 <TableCell>{c.city ?? '—'}</TableCell>
                 <TableCell align="right" className="tnum">{formatCurrency(c.totalSpent)}</TableCell>
-                <TableCell align="right" className="tnum">{formatCurrency(c.totalSpent - c.totalSpent)}</TableCell>
+                <TableCell align="right" className="tnum">{c.outstanding !== undefined ? formatCurrency(c.outstanding) : '—'}</TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Box sx={{ display: 'inline-flex', gap: 0.5 }}>
                     <IconButton size="small" onClick={() => openEdit(c)}>

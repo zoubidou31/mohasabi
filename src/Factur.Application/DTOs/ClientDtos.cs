@@ -25,6 +25,7 @@ public class ClientDto
     public bool IsActive { get; set; } = true;
     public int InvoiceCount { get; set; }
     public decimal TotalSpent { get; set; }
+    public decimal Outstanding { get; set; }
     public DateTime? LastInvoiceDate { get; set; }
 }
 

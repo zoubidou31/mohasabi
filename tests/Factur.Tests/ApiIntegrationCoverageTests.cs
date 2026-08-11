@@ -412,6 +412,9 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
         var search = await SendAsync(HttpMethod.Get, "/api/products?search=test", null);
         Assert.Contains((await search.Content.ReadFromJsonAsync<PagedResultDto<ProductDto>>(Json))!.Items, p => p.Id == id);
 
+        var category = await SendAsync(HttpMethod.Post, "/api/categories", new { name = "Informatique & Technologie" });
+        category.EnsureSuccessStatusCode();
+
         var categories = await SendAsync(HttpMethod.Get, "/api/products/categories", null);
         Assert.Contains("Informatique & Technologie", (await categories.Content.ReadFromJsonAsync<List<string>>(Json))!);
 

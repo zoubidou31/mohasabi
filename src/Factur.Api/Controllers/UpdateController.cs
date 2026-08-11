@@ -9,6 +9,9 @@ namespace Factur.Api.Controllers;
 public class InstallRequest
 {
     public string? DownloadUrl { get; init; }
+
+    /// <summary>Détermine si l'application doit être relancée une fois l'installation terminée (défaut : oui).</summary>
+    public bool LaunchAfterUpdate { get; init; } = true;
 }
 
 [ApiController]
@@ -29,6 +32,13 @@ public class UpdateController : ControllerBase
     public async Task<ActionResult<UpdateCheckResult>> Check(CancellationToken ct)
     {
         return Ok(await _updateService.CheckAsync(ct));
+    }
+
+    /// <summary>État de l'installation en cours (interrogé par le front pour la progression).</summary>
+    [HttpGet("install/status")]
+    public ActionResult<UpdateInstallStatusDto> InstallStatus()
+    {
+        return Ok(_updateService.GetInstallStatus());
     }
 
     /// <summary>Télécharge et lance l'installation de la mise à jour, puis quitte l'application.</summary>
@@ -66,15 +76,28 @@ public class UpdateController : ControllerBase
         }
         catch (Exception ex)
         {
+            UpdateInstallTracker.Fail(ex.Message);
             return BadRequest(new { message = $"Téléchargement impossible : {ex.Message}" });
         }
 
         MarkUpdatePending();
 
+        var launchAfterUpdate = request is null || request.LaunchAfterUpdate;
+        var installerArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART";
+        if (!launchAfterUpdate)
+        {
+            // Demande à l'installateur de ne pas relancer l'application à la fin.
+            installerArgs += " /NOLAUNCH";
+        }
+
+        UpdateInstallTracker.Set(UpdateInstallPhase.Launching, launchAfterUpdate
+            ? "Installation en cours — l'application va redémarrer automatiquement."
+            : "Installation en cours — l'application ne sera pas relancée automatiquement.");
+
         var process = Process.Start(new ProcessStartInfo(installerPath)
         {
             UseShellExecute = true,
-            Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART",
+            Arguments = installerArgs,
         });
 
         // Quitte l'API après un court délai pour libérer les fichiers verrouillés.
@@ -108,7 +131,13 @@ public class UpdateController : ControllerBase
             }
         });
 
-        return Ok(new { message = "Mise à jour téléchargée. L'application va redémarrer automatiquement.", restarting = true });
+        return Ok(new
+        {
+            message = launchAfterUpdate
+                ? "Mise à jour téléchargée. L'application va redémarrer automatiquement."
+                : "Mise à jour téléchargée. L'application ne sera pas relancée automatiquement.",
+            restarting = launchAfterUpdate,
+        });
     }
 
     private static void MarkUpdatePending()
