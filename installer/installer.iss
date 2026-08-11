@@ -37,6 +37,8 @@ RestartApplications=no
 DefaultDirName={userpf}\Mohasabi
 DefaultGroupName=Mohasabi
 DisableProgramGroupPage=yes
+DisableDirPage=no
+UsePreviousAppDir=yes
 PrivilegesRequired=lowest
 
 ArchitecturesAllowed=x64compatible
