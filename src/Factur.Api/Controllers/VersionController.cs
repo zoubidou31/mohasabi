@@ -12,7 +12,7 @@ public class VersionController : ControllerBase
     public ActionResult<object> Get()
     {
         var info = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                   ?? "1.0.1";
+                   ?? "1.0.3";
         var plus = info.IndexOf('+');
         return Ok(new { version = plus > 0 ? info[..plus] : info, product = "Mohasabi" });
     }

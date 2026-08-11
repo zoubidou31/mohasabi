@@ -3,6 +3,9 @@
     [string]$ReleaseNotes = "Correctifs et améliorations.",
     [string]$GitHubRepo = "",
     [string]$Version = "",
+    [string]$SignPfx = "",
+    [string]$SignPfxPassword = "",
+    [string]$TimestampUrl = "http://timestamp.digicert.com",
     [switch]$ManifestOnly
 )
 
@@ -149,6 +152,25 @@ Write-Host "`n[5/6] Compilation de l'installateur..."
 if (-not (Test-Path $iscc)) { throw "ISCC introuvable : $iscc" }
 & $iscc "$root\installer\installer.iss" /DSourceStaging="$staging" /DVersion=$version "/DWebView2Installer=$webView2Exe"
 if ($LASTEXITCODE -ne 0) { throw "Échec de la compilation Inno Setup." }
+
+# 5b) Signature code (optionnelle) de l'installateur, puis nouvelle empreinte SHA-256
+$setupPath = "$distDir\$setupExeName"
+if (-not [string]::IsNullOrWhiteSpace($SignPfx)) {
+    Write-Host "`n[5b/6] Signature de l'installateur..."
+    if (-not (Test-Path $SignPfx)) { throw "Certificat introuvable : $SignPfx" }
+    $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match "x64|x86|amd64" } |
+        Sort-Object FullName -Descending | Select-Object -First 1
+    if (-not $signtool) { $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 }
+    if (-not $signtool) { throw "signtool.exe introuvable dans Windows Kits." }
+    $signArgs = @("sign", "/fd", "SHA256", "/f", $SignPfx)
+    if (-not [string]::IsNullOrWhiteSpace($SignPfxPassword)) { $signArgs += @("/p", $SignPfxPassword) }
+    $signArgs += @("/tr", $TimestampUrl, "/td", "SHA256")
+    $signArgs += @("`"$setupPath`"")
+    & $signtool.FullName @signArgs
+    if ($LASTEXITCODE -ne 0) { throw "Échec de la signature : signtool code $LASTEXITCODE" }
+    Write-Host "  Installateur signé : $setupPath"
+}
 
 # 6) Source de mise à jour
 Write-Host "`n[6/6] Source de mise à jour..."

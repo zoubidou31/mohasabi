@@ -1,7 +1,7 @@
-# Rapport d'acceptation — Mohasabi 1.0.1
+# Rapport d'acceptation — Mohasabi 1.0.3
 
 Date : 11/08/2026
-Produit : **Mohasabi** (Assistant comptable) — version 1.0.1
+Produit : **Mohasabi** (Assistant comptable) — version 1.0.3
 Objet : vérification des 19 exigences d'acceptation, correction des écarts et validation finale.
 
 > Note de méthode : le référentiel ne contient pas le document d'origine des 19
@@ -77,7 +77,7 @@ Légende : ✅ conforme · 🛠 écart corrigé · ⚠️ détail à connaître.
 | 15 | **Installateur Windows** (10/11 x64, WebView2 embarqué, données préservées) | ✅ | `installer/installer.iss` → `Mohasabi_setup.exe` ; cible `{userpf}\Mohasabi`. |
 | 16 | **Raccourcis clavier** (nouvelle facture, enregistrer) | ✅ | `Ctrl+N` / `Ctrl+S` (+ `Ctrl+J` nouvelle facture, `Ctrl+F` recherche) ; **garde-fou ajouté** : désactivés quand la saisie a le focus (`isEditableTarget()`), y compris les sélecteurs MUI. |
 | 17 | **Thème sombre** | ✅ | Palette MUI + variables CSS ; composants audités (PageHeader, StatusBadge, SearchSelect, TablePaginationBar, toutes les pages) — aucun défaut de contraste/visibilité restant. |
-| 18 | **Version affichée** (pied de page dynamique sur toutes les pages) | ✅ | Pied de page fixe avec version 1.0.1, cohérent avec `package.json`, l'installateur et le manifest. |
+| 18 | **Version affichée** (pied de page dynamique sur toutes les pages) | ✅ | Pied de page fixe avec version 1.0.3, cohérent avec `package.json`, l'installateur et le manifest. |
 | 19 | **Qualité / sécurité** : tests, zéro vulnérabilité npm et .NET | ✅ | 170 tests réussis, `npm audit` = 0, `dotnet list package --vulnerable` = aucun. |
 
 ---

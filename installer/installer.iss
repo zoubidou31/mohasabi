@@ -1,7 +1,7 @@
 ; Mohasabi — script d'installation Inno Setup
 
 #ifndef Version
-  #define Version "1.0.1"
+  #define Version "1.0.3"
 #endif
 
 #ifndef SourceStaging

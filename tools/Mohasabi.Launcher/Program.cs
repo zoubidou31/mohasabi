@@ -215,7 +215,7 @@ internal static class Program
             return plus > 0 ? info[..plus] : info;
         }
 
-        return assembly?.GetName().Version?.ToString(3) ?? "1.0.1";
+        return assembly?.GetName().Version?.ToString(3) ?? "1.0.3";
     }
 
     private static string ReadManifestUrl(string configPath)
