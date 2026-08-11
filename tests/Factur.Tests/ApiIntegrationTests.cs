@@ -147,6 +147,9 @@ public class ApiIntegrationTests : IClassFixture<ApiFactory>
         {
             displayName = $"Client Test {Guid.NewGuid():N}"[..20],
             type = "Entreprise",
+            nif = "099916000000013",
+            phone = "0550123456",
+            address = "Cité 20 Août 1956, Alger",
         });
         create.EnsureSuccessStatusCode();
         return await create.Content.ReadFromJsonAsync<Guid>(Json);

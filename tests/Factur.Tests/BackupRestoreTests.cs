@@ -157,7 +157,7 @@ public class BackupRestoreTests
         Assert.True(backup.Success, backup.Error);
 
         // 2. Données ajoutées après la sauvegarde.
-        var create = await client.PostAsJsonAsync("/api/clients", new { displayName = "Client après sauvegarde", type = "Entreprise" });
+        var create = await client.PostAsJsonAsync("/api/clients", new { displayName = "Client après sauvegarde", type = "Entreprise", nif = "099916000000013", phone = "0550123456", address = "Cité 20 Août 1956, Alger" });
         create.EnsureSuccessStatusCode();
         Assert.Equal(1, await GetClientCountAsync(client));
 

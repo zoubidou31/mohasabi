@@ -72,8 +72,8 @@ public class ValidatorsTests
 
     [Theory]
     [InlineData("099916000000000", true)]
-    [InlineData("0999160000000", true)]
-    [InlineData("09991600000000", true)]
+    [InlineData("0999160000000", false)]
+    [InlineData("09991600000000", false)]
     [InlineData("09991600000000AA", false)]
     [InlineData("0999160000000AA", false)]
     [InlineData("09991600", false)]
@@ -82,8 +82,18 @@ public class ValidatorsTests
     public void Client_NIF_RespecteLeFormat(string nif, bool expected)
     {
         var validator = new CreateClientRequestValidator();
-        var client = new CreateClientRequest { DisplayName = "Client", NIF = nif };
+        var client = ValidClientForNif();
+        client.NIF = nif;
         Assert.Equal(expected, validator.Validate(client).IsValid);
+    }
+
+    [Fact]
+    public void Client_NIFObligatoirePourEntreprise()
+    {
+        var validator = new CreateClientRequestValidator();
+        var client = ValidClientForNif();
+        client.NIF = "";
+        Assert.False(validator.Validate(client).IsValid);
     }
 
     [Fact]
@@ -93,6 +103,14 @@ public class ValidatorsTests
         var client = new CreateClientRequest { DisplayName = "Client", Email = "pas-un-email" };
         Assert.False(validator.Validate(client).IsValid);
     }
+
+    private static CreateClientRequest ValidClientForNif() => new()
+    {
+        DisplayName = "Client",
+        Type = ClientType.Entreprise,
+        Phone = "0550123456",
+        Address = "Cité 20 Août 1956, Alger",
+    };
 
     [Fact]
     public void Product_ReferenceVide_EstRejetee()

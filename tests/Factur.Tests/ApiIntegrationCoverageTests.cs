@@ -266,6 +266,7 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
             displayName = "Client MAJ Renommé",
             type = "Entreprise",
             nif = "099916000000013",
+            phone = "0550123456",
             address = "Alger Centre",
         });
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
@@ -302,8 +303,8 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
 
         var import = await SendAsync(HttpMethod.Post, "/api/clients/import", new object[]
         {
-            new { displayName = name, type = "Entreprise", nif = "099916000000013" },
-            new { displayName = name, type = "Entreprise", nif = "099916000000013" },
+            new { displayName = name, type = "Entreprise", nif = "099916000000013", phone = "0550123456", address = "Cité 20 Août 1956, Alger" },
+            new { displayName = name, type = "Entreprise", nif = "099916000000013", phone = "0550123456", address = "Cité 20 Août 1956, Alger" },
             new { displayName = "   ", type = "Entreprise" },
         });
         import.EnsureSuccessStatusCode();
@@ -669,6 +670,8 @@ public class ApiIntegrationCoverageTests : IClassFixture<ApiFactory>
             displayName = $"{displayName} {Guid.NewGuid():N}"[..20],
             type = "Entreprise",
             nif = "099916000000013",
+            phone = "0550123456",
+            address = "Cité 20 Août 1956, Alger",
         });
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<Guid>(Json);

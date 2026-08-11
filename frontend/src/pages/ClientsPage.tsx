@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -25,18 +26,30 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Building2, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import {
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+  XCircle,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, extractError } from '../api/client';
 import type { Client, ClientType, PaymentMethod, PagedResult } from '../api/types';
-import { WILAYAS } from '../data/algerianData';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
 import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { getCommunes, getPostalCodes, getWilayas } from '../data/algeriaLocations';
+import type { ClientForm, FieldMark } from '../utils/clientValidation';
+import { markFor, operatorOf, validateClientForm } from '../utils/clientValidation';
 
-const emptyForm = {
+const emptyForm: ClientForm = {
   displayName: '',
   companyName: '',
   sector: '',
@@ -50,10 +63,17 @@ const emptyForm = {
   phone: '',
   mobile: '',
   email: '',
-  type: 'Entreprise' as ClientType,
-  defaultPaymentMethod: 'Comptant' as PaymentMethod,
+  type: 'Entreprise',
+  defaultPaymentMethod: 'Comptant',
   notes: '',
 };
+
+function MarkIcon({ mark }: { mark: FieldMark }) {
+  if (mark === 'ok') return <CheckCircle2 size={18} color="#2e7d32" />;
+  if (mark === 'warn') return <AlertTriangle size={18} color="#ed6c02" />;
+  if (mark === 'error') return <XCircle size={18} color="#d32f2f" />;
+  return null;
+}
 
 export default function ClientsPage() {
   const { t } = useTranslation();
@@ -64,7 +84,8 @@ export default function ClientsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<ClientForm>(emptyForm);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
   const [alert, setAlert] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
   const [reload, setReload] = useState(0);
@@ -75,6 +96,15 @@ export default function ClientsPage() {
   // Delete-flow state (prevents double submission + shows a confirm step)
   const [confirmClient, setConfirmClient] = useState<Client | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const errors = useMemo(() => validateClientForm(form), [form]);
+  const hasErrors = Object.keys(errors).length > 0;
+
+  const communes = useMemo(() => getCommunes(form.wilaya), [form.wilaya]);
+  const officialCodes = useMemo(
+    () => getPostalCodes(form.wilaya, form.city),
+    [form.wilaya, form.city],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +124,7 @@ export default function ClientsPage() {
   const openNew = () => {
     setEditing(null);
     setForm(emptyForm);
+    setTouched({});
     setError('');
     setDialogOpen(true);
   };
@@ -118,11 +149,13 @@ export default function ClientsPage() {
       defaultPaymentMethod: client.defaultPaymentMethod ?? 'Comptant',
       notes: client.notes ?? '',
     });
+    setTouched({});
     setError('');
     setDialogOpen(true);
   };
 
   const save = async () => {
+    if (hasErrors) return;
     setError('');
     try {
       if (editing) {
@@ -164,7 +197,31 @@ export default function ClientsPage() {
     }
   };
 
-  const set = (field: keyof typeof emptyForm, value: string) => setForm((f) => ({ ...f, [field]: value }));
+  const set = (field: keyof ClientForm, value: string) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const blur = (field: keyof ClientForm) =>
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+  // Reset de la commune et du code postal quand la wilaya change.
+  const onWilayaChange = (code: string) => {
+    setForm((f) => ({ ...f, wilaya: code, city: '', postalCode: '' }));
+  };
+
+  // Un code postal appartient à une commune : on le vide quand la commune change.
+  const onCityChange = (city: string) => {
+    setForm((f) => ({ ...f, city, postalCode: '' }));
+  };
+
+  const mark = (field: keyof ClientForm, required: boolean): FieldMark => {
+    if (!touched[field] && !form[field]) return 'none';
+    return markFor(form[field] as string, errors[field], required);
+  };
+
+  const fieldError = (field: keyof ClientForm) => (touched[field] ? errors[field] : '');
+
+  const operatorPhone = operatorOf(form.phone);
+  const operatorMobile = operatorOf(form.mobile);
 
   return (
     <Box>
@@ -295,77 +352,196 @@ export default function ClientsPage() {
             <TextField
               label={t('client.displayName')}
               fullWidth
+              required
               value={form.displayName}
               onChange={(e) => set('displayName', e.target.value)}
-              required
+              onBlur={() => blur('displayName')}
+              error={!!fieldError('displayName')}
+              helperText={fieldError('displayName') || ' '}
+              InputProps={{
+                endAdornment: <MarkIcon mark={mark('displayName', true)} />,
+              }}
             />
-            <TextField select label={t('client.type')} fullWidth value={form.type} onChange={(e) => set('type', e.target.value)}>
+            <TextField select label={t('client.type')} fullWidth value={form.type} onChange={(e) => set('type', e.target.value as ClientType)}>
               {(['Entreprise', 'Particulier', 'ProfessionnelLiberal'] as ClientType[]).map((ty) => (
                 <MenuItem key={ty} value={ty}>
                   {t(`client.typeLabels.${ty}`)}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField label={t('client.companyName')} fullWidth value={form.companyName} onChange={(e) => set('companyName', e.target.value)} />
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField label={t('client.nif')} fullWidth value={form.nif} onChange={(e) => set('nif', e.target.value)} />
-              <TextField label={t('client.rc')} fullWidth value={form.rc} onChange={(e) => set('rc', e.target.value)} />
-              <TextField label={t('client.art')} fullWidth value={form.art} onChange={(e) => set('art', e.target.value)} />
+              <TextField label={t('client.companyName')} fullWidth value={form.companyName} onChange={(e) => set('companyName', e.target.value)} onBlur={() => blur('companyName')} />
+              <TextField label={t('client.sector')} fullWidth value={form.sector} onChange={(e) => set('sector', e.target.value)} onBlur={() => blur('sector')} />
             </Box>
-            <TextField label={t('client.address')} fullWidth value={form.address} onChange={(e) => set('address', e.target.value)} />
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField label={t('client.city')} fullWidth value={form.city} onChange={(e) => set('city', e.target.value)} />
-              <FormControl fullWidth>
+              <TextField
+                label={form.type === 'Entreprise' ? `${t('client.nif')} *` : t('client.nif')}
+                fullWidth
+                required={form.type === 'Entreprise'}
+                value={form.nif}
+                onChange={(e) => set('nif', e.target.value)}
+                onBlur={() => blur('nif')}
+                error={!!fieldError('nif')}
+                helperText={fieldError('nif') || ' '}
+                inputProps={{ maxLength: 15, inputMode: 'numeric', pattern: '[0-9]*' }}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('nif', form.type === 'Entreprise')} /> }}
+              />
+              <TextField
+                label={t('client.rc')}
+                fullWidth
+                value={form.rc}
+                onChange={(e) => set('rc', e.target.value)}
+                onBlur={() => blur('rc')}
+                error={!!fieldError('rc')}
+                helperText={fieldError('rc') || ' '}
+                placeholder="16/00-0000000B00"
+                InputProps={{ endAdornment: <MarkIcon mark={mark('rc', false)} /> }}
+              />
+              <TextField
+                label={t('client.art')}
+                fullWidth
+                value={form.art}
+                onChange={(e) => set('art', e.target.value)}
+                onBlur={() => blur('art')}
+                error={!!fieldError('art')}
+                helperText={fieldError('art') || ' '}
+                inputProps={{ maxLength: 13, inputMode: 'numeric', pattern: '[0-9]*' }}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('art', false)} /> }}
+              />
+            </Box>
+            <TextField
+              label={t('client.address')}
+              fullWidth
+              required
+              value={form.address}
+              onChange={(e) => set('address', e.target.value)}
+              onBlur={() => blur('address')}
+              error={!!fieldError('address')}
+              helperText={fieldError('address') || ' '}
+              InputProps={{ endAdornment: <MarkIcon mark={mark('address', true)} /> }}
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl fullWidth sx={{ minWidth: 200 }}>
                 <InputLabel>{t('client.wilaya')}</InputLabel>
                 <Select
                   label={t('client.wilaya')}
                   value={form.wilaya}
-                  onChange={(e) => {
-                    const code = e.target.value;
-                    set('wilaya', code ?? '');
-                    // Lock the first two digits (wilaya code) as the postal code prefix.
-                    set('postalCode', code ?? '');
-                  }}
+                  onChange={(e) => onWilayaChange(e.target.value as string)}
+                  onBlur={() => blur('wilaya')}
+                  error={!!fieldError('wilaya')}
                 >
                   <MenuItem value="">
-                    <em>Sélectionner une wilaya</em>
+                    <em>{t('client.selectWilaya')}</em>
                   </MenuItem>
-                  {WILAYAS.map((w) => (
+                  {getWilayas().map((w) => (
                     <MenuItem key={w.code} value={w.code}>
-                      {w.code} — {w.name}
+                      {w.code} — {w.nameFr}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
+              <FormControl fullWidth sx={{ minWidth: 220 }}>
+                <InputLabel>{t('client.city')}</InputLabel>
+                <Select
+                  label={t('client.city')}
+                  value={form.city}
+                  onChange={(e) => onCityChange(e.target.value as string)}
+                  onBlur={() => blur('city')}
+                  error={!!fieldError('city')}
+                  disabled={!form.wilaya}
+                >
+                  <MenuItem value="">
+                    <em>{t('client.selectCity')}</em>
+                  </MenuItem>
+                  {communes.map((c) => (
+                    <MenuItem key={`${c.wilayaCode}-${c.nameFr}`} value={c.nameFr}>
+                      {c.nameFr}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            {fieldError('wilaya') && (
+              <Typography color="error" variant="caption">{fieldError('wilaya')}</Typography>
+            )}
+            {fieldError('city') && (
+              <Typography color="error" variant="caption">{fieldError('city')}</Typography>
+            )}
+            <TextField
+              label={t('client.postalCode')}
+              fullWidth
+              value={form.postalCode}
+              onChange={(e) => set('postalCode', e.target.value.replace(/[^\d]/g, '').slice(0, 5))}
+              onBlur={() => blur('postalCode')}
+              error={!!fieldError('postalCode')}
+              helperText={fieldError('postalCode') || ' '}
+              inputProps={{ maxLength: 5, inputMode: 'numeric', pattern: '[0-9]*' }}
+              InputProps={{ endAdornment: <MarkIcon mark={mark('postalCode', false)} /> }}
+            />
+            {officialCodes.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t('client.officialCodes')}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                  {officialCodes.map((code) => (
+                    <Chip
+                      key={code}
+                      label={code}
+                      size="small"
+                      variant={form.postalCode === code ? 'filled' : 'outlined'}
+                      color={form.postalCode === code ? 'primary' : 'default'}
+                      onClick={() => set('postalCode', code)}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                label={t('company.postalCode')}
+                label={t('client.phone')}
                 fullWidth
-                value={
-                  form.wilaya && (form.postalCode ?? '').startsWith(form.wilaya)
-                    ? (form.postalCode ?? '').slice(form.wilaya.length)
-                    : form.postalCode
-                }
-                placeholder={form.wilaya ? `${form.wilaya}___` : 'Code postal'}
-                onChange={(e) => {
-                  if (!form.wilaya) return;
-                  // Only the 3-digit suffix is editable; the wilaya prefix is locked above.
-                  const raw = e.target.value.replace(/[^\d]/g, '');
-                  set('postalCode', form.wilaya + raw.slice(-3));
-                }}
-                inputProps={{
-                  maxLength: form.wilaya ? 3 : 5,
-                  inputMode: 'numeric',
-                  pattern: '[0-9]*',
-                }}
-                disabled={!form.wilaya}
+                required
+                value={form.phone}
+                onChange={(e) => set('phone', e.target.value)}
+                onBlur={() => blur('phone')}
+                error={!!fieldError('phone')}
+                helperText={fieldError('phone') || ' '}
+                inputProps={{ inputMode: 'tel' }}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('phone', true)} /> }}
+              />
+              <TextField
+                label={t('client.mobile')}
+                fullWidth
+                value={form.mobile}
+                onChange={(e) => set('mobile', e.target.value)}
+                onBlur={() => blur('mobile')}
+                error={!!fieldError('mobile')}
+                helperText={fieldError('mobile') || ' '}
+                inputProps={{ inputMode: 'tel' }}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('mobile', false)} /> }}
+              />
+              <TextField
+                label={t('client.email')}
+                fullWidth
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={() => blur('email')}
+                error={!!fieldError('email')}
+                helperText={fieldError('email') || ' '}
+                InputProps={{ endAdornment: <MarkIcon mark={mark('email', false)} /> }}
               />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField label={t('client.phone')} fullWidth value={form.phone} onChange={(e) => set('phone', e.target.value)} />
-              <TextField label={t('client.mobile')} fullWidth value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
-              <TextField label={t('client.email')} fullWidth value={form.email} onChange={(e) => set('email', e.target.value)} />
-            </Box>
-            <TextField select label={t('invoice.paymentMethod')} fullWidth value={form.defaultPaymentMethod} onChange={(e) => set('defaultPaymentMethod', e.target.value)}>
+            {(operatorPhone || operatorMobile) && (
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('client.operatorPrefix')} :
+                </Typography>
+                {operatorPhone && <Chip size="small" label={`${form.phone} — ${operatorPhone}`} color="primary" variant="outlined" />}
+                {operatorMobile && <Chip size="small" label={`${form.mobile} — ${operatorMobile}`} color="primary" variant="outlined" />}
+              </Box>
+            )}
+            <TextField select label={t('invoice.paymentMethod')} fullWidth value={form.defaultPaymentMethod} onChange={(e) => set('defaultPaymentMethod', e.target.value as PaymentMethod)}>
               {(['Comptant', 'Cheque', 'VirementBancaire', 'CarteBancaire', 'Credit'] as PaymentMethod[]).map((pm) => (
                 <MenuItem key={pm} value={pm}>
                   {t(`paymentLabels.${pm}`)}
@@ -373,11 +549,16 @@ export default function ClientsPage() {
               ))}
             </TextField>
             <TextField label={t('invoice.notes')} fullWidth multiline rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
+            {hasErrors && (
+              <Typography color="warning.main" variant="caption">
+                {t('client.formHint')}
+              </Typography>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" onClick={() => void save()}>
+          <Button variant="contained" disabled={hasErrors} onClick={() => void save()}>
             {t('common.save')}
           </Button>
         </DialogActions>

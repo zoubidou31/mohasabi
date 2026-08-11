@@ -1,4 +1,6 @@
+using Factur.Application.Algeria;
 using Factur.Application.DTOs;
+using Factur.Domain.Enums;
 using FluentValidation;
 
 namespace Factur.Application.Validators;
@@ -9,17 +11,17 @@ namespace Factur.Application.Validators;
 /// </summary>
 public static class FiscalValidationRules
 {
-    public static IRuleBuilderOptions<T, string> NIF<T>(this IRuleBuilder<T, string> rule) =>
+    public static IRuleBuilderOptions<T, string?> NIF<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^\d{15}$").WithMessage("Le NIF doit contenir exactement 15 chiffres.");
 
-    public static IRuleBuilderOptions<T, string> NIS<T>(this IRuleBuilder<T, string> rule) =>
+    public static IRuleBuilderOptions<T, string?> NIS<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^\d{15}$").WithMessage("Le NIS doit contenir exactement 15 chiffres.");
 
-    public static IRuleBuilderOptions<T, string> RC<T>(this IRuleBuilder<T, string> rule) =>
+    public static IRuleBuilderOptions<T, string?> RC<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^\d{2}/\d{2}-\d{7}[A-Z]\d{2}$")
             .WithMessage("Format RC attendu : 16/00-0000000B00.");
 
-    public static IRuleBuilderOptions<T, string> ART<T>(this IRuleBuilder<T, string> rule) =>
+    public static IRuleBuilderOptions<T, string?> ART<T>(this IRuleBuilder<T, string?> rule) =>
         rule.Matches(@"^\d{13}$").WithMessage("Le ART doit contenir exactement 13 chiffres.");
 
     public static IRuleBuilderOptions<T, string?> Phone<T>(this IRuleBuilder<T, string?> rule) =>
@@ -81,14 +83,45 @@ public class CreateClientRequestValidator : AbstractValidator<CreateClientReques
     {
         RuleFor(x => x.DisplayName).NotEmpty().WithMessage("Le nom du client est obligatoire.")
             .MinimumLength(2).WithMessage("Le nom du client doit contenir au moins 2 caractères.");
-        RuleFor(x => x.NIF).Matches(@"^\d{13,15}$").When(x => !string.IsNullOrWhiteSpace(x.NIF))
-            .WithMessage("Le NIF doit être un nombre de 13 à 15 chiffres.");
-        RuleFor(x => x.Email).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse e-mail invalide.");
-        RuleFor(x => x.Phone).Matches(@"^(?:0[567]\d{8}|\d{9})$").When(x => !string.IsNullOrWhiteSpace(x.Phone))
-            .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
-        RuleFor(x => x.Mobile).Matches(@"^(?:0[567]\d{8}|\d{9})$").When(x => !string.IsNullOrWhiteSpace(x.Mobile))
-            .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Type).IsInEnum().WithMessage("Type de client invalide.");
+
+        // NIF obligatoire pour une entreprise ; RC et ART restent facultatifs.
+        RuleFor(x => x.NIF).NotEmpty()
+            .When(x => x.Type == ClientType.Entreprise)
+            .WithMessage("Le NIF est obligatoire pour une entreprise.");
+        RuleFor(x => x.NIF).NIF().When(x => !string.IsNullOrWhiteSpace(x.NIF));
+        RuleFor(x => x.RC).RC().When(x => !string.IsNullOrWhiteSpace(x.RC));
+        RuleFor(x => x.ART).ART().When(x => !string.IsNullOrWhiteSpace(x.ART));
+
+        RuleFor(x => x.Phone).NotEmpty().WithMessage("Le téléphone est obligatoire.")
+            .Phone().WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+        RuleFor(x => x.Mobile).Phone().When(x => !string.IsNullOrWhiteSpace(x.Mobile))
+            .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+        RuleFor(x => x.Email).Email().When(x => !string.IsNullOrWhiteSpace(x.Email))
+            .WithMessage("Adresse e-mail invalide (domaine doit être .com, .dz, .net ou .org).");
+
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse est obligatoire.")
+            .MinimumLength(3).WithMessage("L'adresse doit contenir au moins 3 caractères.");
+
+        // Localisation : source unique algeriaLocations.json (69 wilayas).
+        RuleFor(x => x.Wilaya).Must(w => string.IsNullOrWhiteSpace(w) || AlgeriaLocations.IsValidWilaya(w))
+            .WithMessage("Wilaya invalide (découpage 2026 à 69 wilayas).");
+        RuleFor(x => x.City).Must((x, city) => IsValidCity(x, city))
+            .WithMessage("La ville doit être une commune de la wilaya sélectionnée.");
+        RuleFor(x => x.PostalCode).Must((x, code) => AlgeriaLocations.IsValidPostalCode(x.Wilaya, x.City, code))
+            .When(x => !string.IsNullOrWhiteSpace(x.PostalCode))
+            .WithMessage("Code postal invalide pour la wilaya/commune sélectionnées.");
+
+        RuleFor(x => x.DefaultPaymentMethod).IsInEnum()
+            .When(x => x.DefaultPaymentMethod.HasValue)
+            .WithMessage("Mode de paiement invalide.");
+    }
+
+    private static bool IsValidCity(CreateClientRequest request, string? city)
+    {
+        if (string.IsNullOrWhiteSpace(city)) return true;
+        if (string.IsNullOrWhiteSpace(request.Wilaya)) return false;
+        return AlgeriaLocations.FindCommune(request.Wilaya, city) is not null;
     }
 }
 

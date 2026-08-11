@@ -192,10 +192,13 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public void Client_TelephoneVide_Passe()
+    public void Client_TelephoneVide_EstRefuse()
     {
         var validator = new CreateClientRequestValidator();
-        Assert.True(validator.Validate(ValidClient()).IsValid);
+        var request = ValidClient();
+        request.Phone = "";
+
+        Assert.False(validator.Validate(request).IsValid);
     }
 
     [Theory]
@@ -268,7 +271,8 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
     private static CreateClientRequest ValidClient() => new()
     {
         DisplayName = "Client de test",
-        Phone = "",
+        Phone = "0550123456",
+        Address = "Cité 20 Août 1956, Alger",
     };
 
     private async Task<Guid> EnsureClientIdAsync()
@@ -284,6 +288,9 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
         {
             displayName = $"Client Maintenance {Guid.NewGuid():N}"[..24],
             type = "Entreprise",
+            nif = "099916000000013",
+            phone = "0550123456",
+            address = "Cité 20 Août 1956, Alger",
         });
         create.EnsureSuccessStatusCode();
         return await create.Content.ReadFromJsonAsync<Guid>(Json);
