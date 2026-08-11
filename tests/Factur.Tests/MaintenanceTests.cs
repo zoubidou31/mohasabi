@@ -168,6 +168,9 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
     [InlineData("0770123456")]
     [InlineData("550123456")]
     [InlineData("660123456")]
+    [InlineData("0214567890")]
+    [InlineData("0412345678")]
+    [InlineData("214567890")]
     public void Client_TelephoneAlgerien_Valide_Passe(string phone)
     {
         var validator = new CreateClientRequestValidator();
@@ -180,7 +183,8 @@ public class MaintenanceTests : IClassFixture<ApiFactory>
     [Theory]
     [InlineData("05512345")]
     [InlineData("1550123456")]
-    [InlineData("0214567890")]
+    [InlineData("02145")]
+    [InlineData("02145678901")]
     [InlineData("abc")]
     public void Client_TelephoneInvalide_EstRefuse(string phone)
     {

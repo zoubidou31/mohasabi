@@ -25,8 +25,8 @@ public static class FiscalValidationRules
         rule.Matches(@"^\d{13}$").WithMessage("Le ART doit contenir exactement 13 chiffres.");
 
     public static IRuleBuilderOptions<T, string?> Phone<T>(this IRuleBuilder<T, string?> rule) =>
-        rule.Matches(@"^(?:0[567]\d{8}|\d{9})$")
-            .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+        rule.Matches(@"^(?:0[2-4]\d{8}|0[567]\d{8}|\d{9})$")
+            .WithMessage("Le téléphone doit être un numéro algérien valide (fixe 02/03/04 ou mobile 05/06/07 + 8 chiffres, ou 9 chiffres).");
 
     private static readonly HashSet<string> DisposableEmailDomains = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -80,7 +80,7 @@ public class UpdateCompanyRequestValidator : AbstractValidator<UpdateCompanyRequ
         RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse est obligatoire.")
             .MinimumLength(10).WithMessage("L'adresse doit contenir au moins 10 caractères.");
         RuleFor(x => x.Phone).NotEmpty().WithMessage("Le téléphone est obligatoire.")
-            .Phone().WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+            .Phone().WithMessage("Le téléphone doit être un numéro algérien valide (fixe 02/03/04 ou mobile 05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Mobile).Phone().When(x => !string.IsNullOrWhiteSpace(x.Mobile))
             .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Email).NotEmpty().WithMessage("L'e-mail est obligatoire.")
@@ -119,7 +119,7 @@ public class CreateClientRequestValidator : AbstractValidator<CreateClientReques
         RuleFor(x => x.ART).ART().When(x => !string.IsNullOrWhiteSpace(x.ART));
 
         RuleFor(x => x.Phone).Phone().When(x => !string.IsNullOrWhiteSpace(x.Phone))
-            .WithMessage("Le téléphone doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
+            .WithMessage("Le téléphone doit être un numéro algérien valide (fixe 02/03/04 ou mobile 05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Mobile).Phone().When(x => !string.IsNullOrWhiteSpace(x.Mobile))
             .WithMessage("Le mobile doit être un numéro algérien valide (05/06/07 + 8 chiffres, ou 9 chiffres).");
         RuleFor(x => x.Email).Email().When(x => !string.IsNullOrWhiteSpace(x.Email))
