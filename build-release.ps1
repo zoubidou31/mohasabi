@@ -43,11 +43,16 @@ function New-UpdateManifest {
     } else {
         "https://github.com/$GitHubRepo/releases/latest/download/$setupExeName"
     }
+    $notes = $ReleaseNotes
+    $notesFile = "$root\RELEASE_NOTES.md"
+    if (Test-Path $notesFile) {
+        try { $notes = [System.IO.File]::ReadAllText($notesFile, [System.Text.Encoding]::UTF8) } catch { }
+    }
     $manifest = @{
         version      = $Version
         downloadUrl  = $downloadUrl
         sha256       = $sha256
-        releaseNotes = $ReleaseNotes
+        releaseNotes = $notes
     }
     $json = $manifest | ConvertTo-Json
     [System.IO.File]::WriteAllText("$updateSource\version.json", $json, (New-Object System.Text.UTF8Encoding($false)))

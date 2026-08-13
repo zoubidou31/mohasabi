@@ -1,4 +1,4 @@
-﻿# Notes de version — Mohasabi
+# Notes de version — Mohasabi
 
 ## 1.0.4 (Raccourcis clavier personnalisables)
 
