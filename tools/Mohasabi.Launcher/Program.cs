@@ -49,7 +49,9 @@ internal static class Program
 
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetHighDpiMode(HighDpiMode.SystemAware);
+        // PerMonitorV2 : chaque moniteur est géré à son propre DPI (100/125/150/175/200 %),
+        // la fenêtre est nette et correctement dimensionnée même en déplacement d'écran.
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
         // Apparition autonome dans la barre des tâches (icône Mohasabi, groupe dédié).
         try
@@ -215,7 +217,7 @@ internal static class Program
             return plus > 0 ? info[..plus] : info;
         }
 
-        return assembly?.GetName().Version?.ToString(3) ?? "1.0.3";
+        return assembly?.GetName().Version?.ToString(3) ?? "1.0.4";
     }
 
     private static string ReadManifestUrl(string configPath)

@@ -1,5 +1,6 @@
 using Factur.Application.DTOs;
 using Factur.Application.Interfaces;
+using Factur.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -112,23 +113,50 @@ public class InvoicesController : ControllerBase
     // ------- Exports -------
 
     [HttpGet("{id:guid}/export/pdf")]
-    public async Task<IActionResult> ExportPdf(Guid id, [FromQuery] string? lang, CancellationToken ct)
+    public async Task<IActionResult> ExportPdf(
+        Guid id,
+        [FromQuery] string? lang,
+        [FromQuery] string? docFontFamily,
+        [FromQuery] string? docBaseFontSize,
+        [FromQuery] string? docTableFontSize,
+        [FromQuery] string? docHeaderFontSize,
+        [FromQuery] string? docFooterFontSize,
+        CancellationToken ct)
     {
-        var bytes = await _exportService.ExportPdfAsync(id, lang, ct);
+        var typography = TypographyOptions.FromQuery(docFontFamily, docBaseFontSize, docTableFontSize, docHeaderFontSize, docFooterFontSize);
+        var bytes = await _exportService.ExportPdfAsync(id, lang, typography, ct);
         return File(bytes, "application/pdf", $"{await GetFileNameAsync(id, ct)}.pdf");
     }
 
     [HttpGet("{id:guid}/export/xlsx")]
-    public async Task<IActionResult> ExportExcel(Guid id, [FromQuery] string? lang, CancellationToken ct)
+    public async Task<IActionResult> ExportExcel(
+        Guid id,
+        [FromQuery] string? lang,
+        [FromQuery] string? docFontFamily,
+        [FromQuery] string? docBaseFontSize,
+        [FromQuery] string? docTableFontSize,
+        [FromQuery] string? docHeaderFontSize,
+        [FromQuery] string? docFooterFontSize,
+        CancellationToken ct)
     {
-        var bytes = await _exportService.ExportExcelAsync(id, lang, ct);
+        var typography = TypographyOptions.FromQuery(docFontFamily, docBaseFontSize, docTableFontSize, docHeaderFontSize, docFooterFontSize);
+        var bytes = await _exportService.ExportExcelAsync(id, lang, typography, ct);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{await GetFileNameAsync(id, ct)}.xlsx");
     }
 
     [HttpGet("{id:guid}/export/docx")]
-    public async Task<IActionResult> ExportWord(Guid id, [FromQuery] string? lang, CancellationToken ct)
+    public async Task<IActionResult> ExportWord(
+        Guid id,
+        [FromQuery] string? lang,
+        [FromQuery] string? docFontFamily,
+        [FromQuery] string? docBaseFontSize,
+        [FromQuery] string? docTableFontSize,
+        [FromQuery] string? docHeaderFontSize,
+        [FromQuery] string? docFooterFontSize,
+        CancellationToken ct)
     {
-        var bytes = await _exportService.ExportWordAsync(id, lang, ct);
+        var typography = TypographyOptions.FromQuery(docFontFamily, docBaseFontSize, docTableFontSize, docHeaderFontSize, docFooterFontSize);
+        var bytes = await _exportService.ExportWordAsync(id, lang, typography, ct);
         return File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", $"{await GetFileNameAsync(id, ct)}.docx");
     }
 

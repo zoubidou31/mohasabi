@@ -16,11 +16,9 @@ public class ReportService : IReportService
         _context = context;
     }
 
-    public async Task<MonthlyReportDto> GetMonthlyReportAsync(int year, int month, CancellationToken ct = default)
+    /// <summary>Synthèse sur une période libre (mois, trimestre, année, etc.).</summary>
+    public async Task<MonthlyReportDto> GetPeriodReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
-        var from = new DateTime(year, month, 1);
-        var to = from.AddMonths(1).AddDays(-1);
-
         var invoices = await _context.Invoices.AsNoTracking()
             .Include(i => i.Client)
             .Include(i => i.TVABreakdowns)
@@ -49,24 +47,23 @@ public class ReportService : IReportService
 
         return new MonthlyReportDto
         {
-            Year = year,
-            Month = month,
+            Year = from.Year,
+            Month = from.Month,
             InvoiceCount = active.Count,
             TotalHT = active.Sum(i => i.TotalHT),
             TotalTVA = active.Sum(i => i.TotalTVA),
             TotalTTC = active.Sum(i => i.TotalTTC),
             TotalCollected = collected,
             Outstanding = active.Sum(i => i.SoldeRestant),
+            OutstandingCount = active.Count(i => i.SoldeRestant > 0),
             TVAByRate = tvaByRate,
             Invoices = invoices.Select(i => i.ToSummaryDto()).ToList(),
         };
     }
 
-    public async Task<PagedResult<InvoiceSummaryDto>> GetMonthlyInvoicesPagedAsync(int year, int month, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    /// <summary>Factures paginées sur une période libre.</summary>
+    public async Task<PagedResult<InvoiceSummaryDto>> GetPeriodInvoicesPagedAsync(DateTime from, DateTime to, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
-        var from = new DateTime(year, month, 1);
-        var to = from.AddMonths(1).AddDays(-1);
-
         var q = _context.Invoices.AsNoTracking()
             .Include(i => i.Client)
             .Where(i => i.InvoiceDate >= from && i.InvoiceDate <= to && i.Status != InvoiceStatus.Annulee)
@@ -88,6 +85,20 @@ public class ReportService : IReportService
             Page = safePage,
             PageSize = safeSize,
         };
+    }
+
+    public async Task<MonthlyReportDto> GetMonthlyReportAsync(int year, int month, CancellationToken ct = default)
+    {
+        var from = new DateTime(year, month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+        return await GetPeriodReportAsync(from, to, ct);
+    }
+
+    public async Task<PagedResult<InvoiceSummaryDto>> GetMonthlyInvoicesPagedAsync(int year, int month, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        var from = new DateTime(year, month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+        return await GetPeriodInvoicesPagedAsync(from, to, page, pageSize, ct);
     }
 
     public async Task<TVAReportDto> GetTVAReportAsync(DateTime? from, DateTime? to, CancellationToken ct = default)

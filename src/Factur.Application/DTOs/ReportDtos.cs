@@ -10,6 +10,7 @@ public class MonthlyReportDto
     public decimal TotalTTC { get; set; }
     public decimal TotalCollected { get; set; }
     public decimal Outstanding { get; set; }
+    public int OutstandingCount { get; set; }
     public IReadOnlyList<TVAReportDto> TVAByRate { get; set; } = new List<TVAReportDto>();
     public IReadOnlyList<InvoiceSummaryDto> Invoices { get; set; } = new List<InvoiceSummaryDto>();
 }

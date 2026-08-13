@@ -69,7 +69,7 @@ public class EmailService : IEmailService
             Text = message ?? $"Bonjour,\n\nVeuillez trouver ci-joint la facture {invoice.InvoiceNumber} d'un montant de {invoice.TotalTTC:N2} DA.\n\nCordialement,\n{company.CompanyName}",
         };
 
-        var pdf = await _exportService.ExportPdfAsync(invoiceId, lang: null, ct);
+        var pdf = await _exportService.ExportPdfAsync(invoiceId, lang: null, typography: null, ct);
         var attachment = new MimePart("application", "pdf")
         {
             FileName = $"{invoice.InvoiceNumber}.pdf",

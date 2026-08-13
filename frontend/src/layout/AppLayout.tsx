@@ -36,7 +36,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { useUpdateStore, type UpdateInstallStatus } from '../stores/updateStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { dispatchShortcut, SHORTCUT_EVENTS, useGlobalShortcuts } from '../utils/shortcuts';
+import { COMMAND_IDS, useGlobalCommand, useGlobalShortcuts } from '../utils/shortcuts';
+import CommandPalette from '../components/CommandPalette';
 
 const navItems = [
   { key: 'invoices', icon: FileText, path: '/invoices' },
@@ -230,16 +231,28 @@ export default function AppLayout() {
     navigate('/options');
   };
 
-  // Raccourcis clavier globaux : Ctrl+N / Ctrl+J (nouvelle facture),
-  // Ctrl+S (enregistrer, relayé aux formulaires), Ctrl+F (rechercher).
-  useGlobalShortcuts({
-    onNewInvoice: () => {
-      navigate('/invoices/new');
-      setMobileOpen(false);
-    },
-    onSave: () => dispatchShortcut(SHORTCUT_EVENTS.SAVE),
-    onFocusSearch: () => dispatchShortcut(SHORTCUT_EVENTS.FOCUS_SEARCH),
+  // Raccourcis clavier globaux : la saisie est écoutée une fois ici et
+  // déclenche les handlers enregistrés par la page active (useCommand).
+  useGlobalShortcuts();
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Commandes GLOBALES (actives sur toutes les pages). Chaque page enregistre ses
+  // propres handlers via useCommand et prime sur ceux-ci pour une même commande.
+  useGlobalCommand(COMMAND_IDS.NEW, () => {
+    navigate('/invoices/new');
+    setMobileOpen(false);
   });
+  useGlobalCommand(COMMAND_IDS.GLOBAL_SEARCH, () => setPaletteOpen((o) => !o));
+  useGlobalCommand(COMMAND_IDS.HELP, () => setPaletteOpen(true));
+  useGlobalCommand(COMMAND_IDS.NAV_DASHBOARD, () => navigate('/invoices'));
+  useGlobalCommand(COMMAND_IDS.NAV_INVOICES, () => navigate('/invoices'));
+  useGlobalCommand(COMMAND_IDS.NAV_CLIENTS, () => navigate('/clients'));
+  useGlobalCommand(COMMAND_IDS.NAV_PRODUCTS, () => navigate('/products'));
+  useGlobalCommand(COMMAND_IDS.NAV_REPORTS, () => navigate('/reports'));
+  useGlobalCommand(COMMAND_IDS.NAV_SETTINGS, () => navigate('/options'));
+  useGlobalCommand(COMMAND_IDS.NAV_BACK, () => navigate(-1));
+  useGlobalCommand(COMMAND_IDS.NAV_FORWARD, () => navigate(1));
 
   const navContent = (isMobile: boolean) => (
     <Box
@@ -466,6 +479,8 @@ export default function AppLayout() {
         )}
         <Outlet />
       </Box>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* Version footer — fixed at the bottom of the viewport, visible on every
           page without overlapping page content (main padding clears its height). */}

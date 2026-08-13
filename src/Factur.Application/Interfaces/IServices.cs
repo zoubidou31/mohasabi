@@ -1,4 +1,5 @@
 using Factur.Application.DTOs;
+using Factur.Domain;
 
 namespace Factur.Application.Interfaces;
 
@@ -68,7 +69,9 @@ public interface IInvoiceService
 public interface IReportService
 {
     Task<MonthlyReportDto> GetMonthlyReportAsync(int year, int month, CancellationToken ct = default);
+    Task<MonthlyReportDto> GetPeriodReportAsync(DateTime from, DateTime to, CancellationToken ct = default);
     Task<PagedResult<InvoiceSummaryDto>> GetMonthlyInvoicesPagedAsync(int year, int month, int page = 1, int pageSize = 20, CancellationToken ct = default);
+    Task<PagedResult<InvoiceSummaryDto>> GetPeriodInvoicesPagedAsync(DateTime from, DateTime to, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<TVAReportDto> GetTVAReportAsync(DateTime? from, DateTime? to, CancellationToken ct = default);
     Task<IReadOnlyList<InvoiceSummaryDto>> GetUnpaidInvoicesAsync(DateTime? asOf = null, CancellationToken ct = default);
     Task<PagedResult<InvoiceSummaryDto>> GetUnpaidPagedAsync(int page = 1, int pageSize = 20, CancellationToken ct = default);
@@ -85,9 +88,9 @@ public interface IAuditService
 /// <summary>Export des factures et des rapports en PDF, Excel, Word, CSV.</summary>
 public interface IExportService
 {
-    Task<byte[]> ExportPdfAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default);
-    Task<byte[]> ExportExcelAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default);
-    Task<byte[]> ExportWordAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default);
+    Task<byte[]> ExportPdfAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default);
+    Task<byte[]> ExportExcelAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default);
+    Task<byte[]> ExportWordAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default);
     byte[] ExportCsv(InvoiceDto invoice, string? lang = null);
     Task<byte[]> ExportInvoicesExcelAsync(IEnumerable<InvoiceSummaryDto> invoices, string? lang = null, CancellationToken ct = default);
 

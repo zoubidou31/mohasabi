@@ -10,6 +10,17 @@ public class AppSettings
     public int BackupRetentionCount { get; set; } = 5;
     public string BackupLocation { get; set; } = string.Empty;
     public bool SplashEnabled { get; set; } = true;
+
+    // Typographie de l'interface (UI de l'application) — n'affecte pas les exports.
+    public string AppFontFamily { get; set; } = "Inter";
+    public string InterfaceFontSize { get; set; } = "medium";
+
+    // Typographie des documents exportés (PDF / Word / Excel).
+    public string DocFontFamily { get; set; } = "Inter";
+    public double DocBaseFontSize { get; set; } = 11;
+    public double DocTableFontSize { get; set; } = 9;
+    public double DocHeaderFontSize { get; set; } = 13;
+    public double DocFooterFontSize { get; set; } = 9;
 }
 
 /// <summary>État de la sauvegarde (écrit par le service de sauvegarde, lu par l'API).</summary>

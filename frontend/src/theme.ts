@@ -80,7 +80,7 @@ export function createAppTheme(mode: Mode): Theme {
     shape: { borderRadius: 16 },
     typography: {
       fontFamily:
-        "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        "var(--moha-app-font, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
       h4: { fontWeight: 800, letterSpacing: '-0.02em' },
       h5: { fontWeight: 800, letterSpacing: '-0.01em' },
       h6: { fontWeight: 700 },

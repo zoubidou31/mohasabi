@@ -28,7 +28,7 @@ import { api, extractError } from '../api/client';
 import type { Client, Invoice, InvoiceType, PaymentMethod, Product, TVARate } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
-import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 import SearchSelect from '../components/SearchSelect';
 
 interface LineForm {
@@ -157,9 +157,10 @@ export default function InvoiceFormPage() {
     }
   };
 
-  useShortcutEvent(SHORTCUT_EVENTS.SAVE, () => {
+  useCommand(COMMAND_IDS.SAVE, () => {
     if (!busy) void submit();
   });
+  useCommand(COMMAND_IDS.NEW, () => navigate('/invoices/new'));
 
   return (
     <Box>
@@ -370,8 +371,8 @@ export default function InvoiceFormPage() {
                 </Typography>
                 <FormControl size="small" sx={{ minWidth: 90 }}>
                   <Select value={vatRate} onChange={(e) => setVatRate(e.target.value as 0.19 | 0.09)}>
-                    <MenuItem value={0.19}>19%</MenuItem>
-                    <MenuItem value={0.09}>9%</MenuItem>
+                    <MenuItem value={0.19}>TVA 19%</MenuItem>
+                    <MenuItem value={0.09}>TVA 9%</MenuItem>
                   </Select>
                 </FormControl>
               </Box>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { CssBaseline, ThemeProvider } from '@mui/material';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { createAppTheme } from './theme';
 import AppLayout from './layout/AppLayout';
 import InvoicesPage from './pages/InvoicesPage';
@@ -28,22 +28,28 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/invoices" replace />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="invoices/new" element={<InvoiceFormPage />} />
-            <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-            <Route path="invoices/:id/edit" element={<InvoiceFormPage />} />
-            <Route path="clients" element={<ClientsPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="settings" element={<CompanyPage />} />
-            <Route path="options" element={<OptionsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/invoices" replace />} />
-        </Routes>
+        <RouterProvider router={router} />
       </ErrorBoundary>
     </ThemeProvider>
   );
 }
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <Navigate to="/invoices" replace /> },
+      { path: 'invoices', element: <InvoicesPage /> },
+      { path: 'invoices/new', element: <InvoiceFormPage /> },
+      { path: 'invoices/:id', element: <InvoiceDetailPage /> },
+      { path: 'invoices/:id/edit', element: <InvoiceFormPage /> },
+      { path: 'clients', element: <ClientsPage /> },
+      { path: 'products', element: <ProductsPage /> },
+      { path: 'reports', element: <ReportsPage /> },
+      { path: 'settings', element: <CompanyPage /> },
+      { path: 'options', element: <OptionsPage /> },
+    ],
+  },
+  { path: '*', element: <Navigate to="/invoices" replace /> },
+]);

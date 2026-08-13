@@ -26,10 +26,12 @@ import { ArrowLeft, Copy, CreditCard, Download, FilePlus2, Pencil } from 'lucide
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, extractError } from '../api/client';
+import { useSettingsStore } from '../stores/settingsStore';
 import type { Invoice, PaymentMethod } from '../api/types';
 import { formatCurrency, formatDate } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 
 export default function InvoiceDetailPage() {
   const { t, i18n } = useTranslation();
@@ -69,7 +71,18 @@ export default function InvoiceDetailPage() {
 
   const download = async (kind: 'pdf' | 'xlsx' | 'docx') => {
     const lang = i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'fr';
-    const resp = await api.get(`/invoices/${id}/export/${kind}`, { params: { lang }, responseType: 'blob' });
+    const s = useSettingsStore.getState().settings;
+    const resp = await api.get(`/invoices/${id}/export/${kind}`, {
+      params: {
+        lang,
+        docFontFamily: s?.docFontFamily,
+        docBaseFontSize: s?.docBaseFontSize,
+        docTableFontSize: s?.docTableFontSize,
+        docHeaderFontSize: s?.docHeaderFontSize,
+        docFooterFontSize: s?.docFooterFontSize,
+      },
+      responseType: 'blob',
+    });
     const url = URL.createObjectURL(resp.data);
     const a = document.createElement('a');
     a.href = url;
@@ -83,6 +96,17 @@ export default function InvoiceDetailPage() {
     setPayOpen(false);
     setPayAmount('');
   };
+
+  // Raccourcis (avant le early-return pour respecter les règles de hooks).
+  useCommand(COMMAND_IDS.FINALIZE, () => {
+    if (invoice && invoice.status === 'Brouillon') {
+      void action(() => api.post(`/invoices/${invoice.id}/finalize`));
+    }
+  });
+  useCommand(COMMAND_IDS.PRINT, () => void download('pdf'));
+  useCommand(COMMAND_IDS.DUPLICATE, () => {
+    if (invoice) void action(() => api.post(`/invoices/${invoice.id}/duplicate`));
+  });
 
   if (!invoice) {
     if (loadError) {

@@ -5,6 +5,7 @@ using Factur.Application.DTOs;
 using Factur.Application.Interfaces;
 using Factur.Domain.Entities;
 using Factur.Domain.Enums;
+using Factur.Domain;
 using Factur.Infrastructure.Export;
 using Factur.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -96,25 +97,25 @@ public class ExportService : IExportService
 
     // ---------------------------------------------------------------- factures
 
-    public async Task<byte[]> ExportPdfAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default)
+    public async Task<byte[]> ExportPdfAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default)
     {
         var strings = DocumentStrings.For(lang);
         var doc = await BuildDocumentAsync(invoiceId, strings, ct);
-        return InvoicePdfRenderer.Render(doc);
+        return InvoicePdfRenderer.Render(doc, typography);
     }
 
-    public async Task<byte[]> ExportExcelAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default)
+    public async Task<byte[]> ExportExcelAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default)
     {
         var strings = DocumentStrings.For(lang);
         var doc = await BuildDocumentAsync(invoiceId, strings, ct);
-        return InvoiceExcelRenderer.Render(doc);
+        return InvoiceExcelRenderer.Render(doc, typography);
     }
 
-    public async Task<byte[]> ExportWordAsync(Guid invoiceId, string? lang = null, CancellationToken ct = default)
+    public async Task<byte[]> ExportWordAsync(Guid invoiceId, string? lang = null, TypographyOptions? typography = null, CancellationToken ct = default)
     {
         var strings = DocumentStrings.For(lang);
         var doc = await BuildDocumentAsync(invoiceId, strings, ct);
-        return InvoiceWordRenderer.Render(doc);
+        return InvoiceWordRenderer.Render(doc, typography);
     }
 
     public byte[] ExportCsv(InvoiceDto invoice, string? lang = null)

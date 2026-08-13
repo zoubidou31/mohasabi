@@ -11,6 +11,7 @@ public class SettingsService : ISettingsService
 {
     private static readonly string[] AllowedLanguages = { "fr", "en" };
     private static readonly string[] AllowedThemes = { "light", "dark", "system" };
+    private static readonly string[] AllowedInterfaceSizes = { "small", "medium", "large" };
     private static readonly int[] AllowedFrequencies = { 5, 15, 30, 60, 360, 1440 };
     private static readonly int[] AllowedRetention = { 0, 3, 5, 10 };
 
@@ -47,6 +48,16 @@ public class SettingsService : ISettingsService
         current.BackupRetentionCount = NormalizeInt(settings.BackupRetentionCount, AllowedRetention, 5);
         current.BackupLocation = NormalizeLocation(settings.BackupLocation);
         current.SplashEnabled = settings.SplashEnabled;
+
+        // Typographie (interface + documents exportés).
+        current.AppFontFamily = NormalizeFont(settings.AppFontFamily);
+        current.InterfaceFontSize = Normalize(settings.InterfaceFontSize, AllowedInterfaceSizes, "medium");
+        current.DocFontFamily = NormalizeFont(settings.DocFontFamily);
+        current.DocBaseFontSize = NormalizeSize(settings.DocBaseFontSize, 11);
+        current.DocTableFontSize = NormalizeSize(settings.DocTableFontSize, 9);
+        current.DocHeaderFontSize = NormalizeSize(settings.DocHeaderFontSize, 13);
+        current.DocFooterFontSize = NormalizeSize(settings.DocFooterFontSize, 9);
+
         await WriteAsync(current, ct);
         return ToSettings(current);
     }
@@ -158,6 +169,13 @@ public class SettingsService : ISettingsService
         BackupRetentionCount = persisted.BackupRetentionCount,
         BackupLocation = persisted.BackupLocation,
         SplashEnabled = persisted.SplashEnabled,
+        AppFontFamily = persisted.AppFontFamily,
+        InterfaceFontSize = persisted.InterfaceFontSize,
+        DocFontFamily = persisted.DocFontFamily,
+        DocBaseFontSize = persisted.DocBaseFontSize,
+        DocTableFontSize = persisted.DocTableFontSize,
+        DocHeaderFontSize = persisted.DocHeaderFontSize,
+        DocFooterFontSize = persisted.DocFooterFontSize,
     };
 
     private string NormalizeLocation(string? location)
@@ -174,6 +192,12 @@ public class SettingsService : ISettingsService
 
     private static int NormalizeInt(int value, int[] allowed, int fallback)
         => allowed.Contains(value) ? value : fallback;
+
+    private static string NormalizeFont(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "Inter" : value!.Trim();
+
+    private static double NormalizeSize(double value, double fallback)
+        => value > 0 ? value : fallback;
 }
 
 /// <summary>Fichier <c>settings.json</c> : préférences + état de sauvegarde (interne).</summary>
@@ -191,6 +215,14 @@ internal class PersistedSettings : AppSettings
         if (BackupRetentionCount is not (0 or 3 or 5 or 10)) BackupRetentionCount = 5;
         if (string.IsNullOrWhiteSpace(BackupLocation)) BackupLocation = AppPaths.DefaultBackupDirectory(root);
         if (LastBackupStatus is not (null or "ok" or "failed")) LastBackupStatus = null;
+
+        if (!IsValidInterfaceSize(InterfaceFontSize)) InterfaceFontSize = "medium";
+        if (string.IsNullOrWhiteSpace(AppFontFamily)) AppFontFamily = "Inter";
+        if (string.IsNullOrWhiteSpace(DocFontFamily)) DocFontFamily = "Inter";
+        if (DocBaseFontSize <= 0) DocBaseFontSize = 11;
+        if (DocTableFontSize <= 0) DocTableFontSize = 9;
+        if (DocHeaderFontSize <= 0) DocHeaderFontSize = 13;
+        if (DocFooterFontSize <= 0) DocFooterFontSize = 9;
     }
 
     private static bool IsValidLanguage(string value)
@@ -198,4 +230,7 @@ internal class PersistedSettings : AppSettings
 
     private static bool IsValidTheme(string value)
         => value is "light" or "dark" or "system";
+
+    private static bool IsValidInterfaceSize(string value)
+        => value is "small" or "medium" or "large";
 }

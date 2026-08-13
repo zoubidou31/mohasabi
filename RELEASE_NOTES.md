@@ -1,4 +1,30 @@
-# Notes de version — Mohasabi
+﻿# Notes de version — Mohasabi
+
+## 1.0.4 (Raccourcis clavier personnalisables)
+
+**Mohasabi — Assistant comptable** : ajout de la personnalisation des raccourcis
+clavier et fiabilisation de la saisie et des exports PDF.
+
+### Raccourcis clavier
+- Nouvelle section **Raccourcis** (Paramètres → Raccourcis) : assigner, modifier et
+  réinitialiser les raccourcis des actions principales (Nouvelle facture, Journal,
+  Sauvegarder, Rechercher).
+- **Détection des conflits** : deux actions ne peuvent pas partager la même combinaison ;
+  un avertissement est affiché et la sauvegarde est bloquée tant que le conflit persiste.
+
+### Saisie et garde-fous
+- Les raccourcis globaux sont **désactivés pendant la saisie** (champs texte, y compris
+  les sélecteurs MUI, les sélecteurs de date et les champs numériques) afin de ne pas
+  intercepter la frappe.
+- **DevTools (F12)** désactivé en production pour éviter toute fuite d'outils de
+  débogage dans l'application livrée.
+
+### Exports PDF
+- Rendu correct des **caractères CJK** (chinois, japonais, coréen) via un repli de police
+  dédié, sans casser la mise en page du document.
+
+### Qualité
+- Compilation TypeScript corrigée (0 erreur) sur l'ensemble du frontend.
 
 ## 1.0.3 (Maintenance : conformité au référentiel d'acceptation)
 

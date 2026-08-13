@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Source unique de version (produit "Mohasabi") -->
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Product>Mohasabi</Product>
     <Company>Mohasabi</Company>
     <Authors>Mohasabi</Authors>

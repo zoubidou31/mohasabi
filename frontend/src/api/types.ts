@@ -155,7 +155,34 @@ export interface AppSettings {
   backupRetentionCount: number;
   backupLocation: string;
   splashEnabled: boolean;
+  // Interface (program UI) typography — does NOT affect exported documents.
+  appFontFamily: string;
+  interfaceFontSize: 'small' | 'medium' | 'large';
+  // Document (PDF / Word / Excel) typography — applied only on exports.
+  docFontFamily: string;
+  docBaseFontSize: number;
+  docTableFontSize: number;
+  docHeaderFontSize: number;
+  docFooterFontSize: number;
 }
+
+export type InterfaceFontSize = 'small' | 'medium' | 'large';
+
+/** Font families offered in the UI (web-safe + brand). Backend maps to safe PDF fonts. */
+export const FONT_FAMILIES = [
+  'Inter',
+  'Arial',
+  'Times New Roman',
+  'Calibri',
+  'Georgia',
+  'Consolas',
+] as const;
+
+export const INTERFACE_FONT_SIZES: Record<InterfaceFontSize, number> = {
+  small: 13,
+  medium: 14,
+  large: 16,
+};
 
 export interface BackupStatus {
   autoBackupEnabled: boolean;
@@ -228,8 +255,16 @@ export interface MonthlyReport {
   totalTTC: number;
   totalCollected: number;
   outstanding: number;
+  outstandingCount: number;
   tvaByRate: TVAReport[];
   invoices: InvoiceSummary[];
+}
+
+export interface TopClient {
+  clientId: string;
+  clientName: string;
+  invoiceCount: number;
+  totalTTC: number;
 }
 
 export interface TVAReport {

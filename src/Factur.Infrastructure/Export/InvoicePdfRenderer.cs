@@ -1,4 +1,6 @@
 using System.Globalization;
+using Factur.Domain;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -10,10 +12,76 @@ public static class InvoicePdfRenderer
 {
     private static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
 
-    public static byte[] Render(ExportDocument doc)
+    private static readonly HashSet<string> SafeFontFamilies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Arial", "Times New Roman", "Calibri", "Georgia", "Consolas", "Courier New", "Inter",
+    };
+
+    private static readonly Dictionary<string, string> FontFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Arial"] = "arial.ttf",
+        ["Times New Roman"] = "times.ttf",
+        ["Calibri"] = "calibri.ttf",
+        ["Georgia"] = "georgia.ttf",
+        ["Consolas"] = "consola.ttf",
+        ["Courier New"] = "cour.ttf",
+        ["Inter"] = "Inter-Regular.ttf",
+    };
+
+    private static readonly HashSet<string> RegisteredFonts = new(StringComparer.OrdinalIgnoreCase);
+
+    public static byte[] Render(ExportDocument doc, TypographyOptions? typography = null)
     {
         var s = doc.Strings;
         var accent = "#1A237E";
+        var typo = typography ?? new TypographyOptions();
+        var pdfFont = ResolvePdfFont(typo.FontFamily);
+
+        var baseSize = (float)typo.BaseFontSize;
+        var tableSize = (float)typo.TableFontSize;
+        var headerSize = (float)typo.HeaderFontSize;
+        var footerSize = (float)typo.FooterFontSize;
+
+        void HeaderCell(TableDescriptor table, string text, string accent, bool alignRight = false) =>
+            HeaderCellBody(table.Cell(), text, accent, alignRight, tableSize);
+
+        void HeaderCellTcd(TableCellDescriptor table, string text, string accent, bool alignRight = false) =>
+            HeaderCellBody(table.Cell(), text, accent, alignRight, tableSize);
+
+        void HeaderCellBody(IContainer raw, string text, string accent, bool alignRight, float size)
+        {
+            var cell = raw.Element(x => x.Border(0.5f).BorderColor(accent).Background(accent).Padding(4));
+            if (alignRight)
+            {
+                cell = cell.AlignRight();
+            }
+
+            cell.Text(text).FontColor("#FFFFFF").SemiBold().FontSize(size);
+        }
+
+        void LineCell(TableDescriptor table, string? text, bool bold = false, bool alignRight = false)
+        {
+            var container = table.Cell().Element(Cell);
+            if (alignRight)
+            {
+                container = container.AlignRight();
+            }
+
+            container.Text(t =>
+            {
+                var span = t.Span(text ?? string.Empty).FontSize(tableSize).FontColor("#334155");
+                if (bold)
+                {
+                    span.SemiBold();
+                }
+            });
+        }
+
+        void Meta(TableDescriptor table, string label, string value, string accent, bool boldValue = false)
+        {
+            table.Cell().Element(x => x.PaddingVertical(1.5f)).Text(label).FontSize(baseSize).FontColor("#64748B");
+            table.Cell().Element(x => x.PaddingVertical(1.5f)).AlignRight().Text(value).FontSize(baseSize).SemiBold();
+        }
 
         var document = Document.Create(d =>
         {
@@ -23,7 +91,16 @@ public static class InvoicePdfRenderer
                 page.MarginHorizontal(26);
                 page.MarginTop(40);
                 page.MarginBottom(40);
-                page.DefaultTextStyle(x => x.FontSize(9).FontColor("#1F2937"));
+                page.DefaultTextStyle(x =>
+                {
+                    var style = x.FontSize(baseSize).FontColor("#1F2937");
+                    if (pdfFont is not null)
+                    {
+                        style = style.FontFamily(pdfFont);
+                    }
+
+                    return style;
+                });
 
                 page.Content().Column(content =>
                 {
@@ -46,7 +123,7 @@ public static class InvoicePdfRenderer
                                 logoRow.RelativeItem().PaddingLeft(12).Column(name =>
                                 {
                                     name.Item().Text(doc.Company.Name)
-                                        .FontSize(15).Bold().FontColor(accent);
+                                        .FontSize(headerSize).Bold().FontColor(accent);
                                     if (!string.IsNullOrWhiteSpace(doc.Company.NIF))
                                     {
                                         name.Item().PaddingTop(2).Text(CompanyFiscalLine(doc.Company)).FontSize(7.5f).FontColor("#64748B");
@@ -65,7 +142,7 @@ public static class InvoicePdfRenderer
                         row.ConstantItem(230).Column(right =>
                         {
                             right.Item().Padding(8).Border(1).BorderColor(accent).Background(accent).AlignCenter()
-                                .Text(doc.Title).FontSize(18).Bold().FontColor("#FFFFFF");
+                                .Text(doc.Title).FontSize(headerSize).Bold().FontColor("#FFFFFF");
                             right.Item().PaddingTop(4).Table(t =>
                             {
                                 t.ColumnsDefinition(c => { c.ConstantColumn(96); c.RelativeColumn(); });
@@ -93,29 +170,29 @@ public static class InvoicePdfRenderer
                         row.RelativeItem().Column(client =>
                         {
                             client.Item().Text(s.BillTo).FontSize(8).Bold().FontColor(accent);
-                            client.Item().PaddingTop(3).Text(doc.Client.Name).FontSize(11).Bold();
+                            client.Item().PaddingTop(3).Text(doc.Client.Name).FontSize(baseSize).Bold();
                             if (!string.IsNullOrWhiteSpace(doc.Client.Address))
                             {
-                                client.Item().PaddingTop(1).Text(doc.Client.Address).FontSize(9);
+                                client.Item().PaddingTop(1).Text(doc.Client.Address).FontSize(baseSize);
                             }
 
                             var clientInfo = PartyFiscalLine(doc.Client);
                             if (!string.IsNullOrWhiteSpace(clientInfo))
                             {
-                                client.Item().PaddingTop(2).Text(clientInfo).FontSize(8).FontColor("#64748B");
+                                client.Item().PaddingTop(2).Text(clientInfo).FontSize(baseSize).FontColor("#64748B");
                             }
 
                             var contact = PartyContactLine(doc.Client);
                             if (!string.IsNullOrWhiteSpace(contact))
                             {
-                                client.Item().PaddingTop(1).Text(contact).FontSize(8).FontColor("#64748B");
+                                client.Item().PaddingTop(1).Text(contact).FontSize(baseSize).FontColor("#64748B");
                             }
                         });
 
                         row.ConstantItem(230).Column(status =>
                         {
-                            status.Item().AlignRight().Text($"{s.StatusLabel} : {doc.Status}")
-                                .FontSize(9).Bold().FontColor(doc.StatusColorHex);
+                                status.Item().AlignRight().Text($"{s.StatusLabel} : {doc.Status}")
+                                    .FontSize(baseSize).Bold().FontColor(doc.StatusColorHex);
                             if (doc.Totals.MontantPaye > 0m)
                             {
                                 status.Item().PaddingTop(4).AlignRight().Text($"{s.AmountPaid} : {Money(doc.Totals.MontantPaye)}").FontSize(9);
@@ -141,14 +218,14 @@ public static class InvoicePdfRenderer
 
                         table.Header(header =>
                         {
-                            HeaderCell(header, s.Index, accent);
-                            HeaderCell(header, s.Reference, accent);
-                            HeaderCell(header, s.Designation, accent);
-                            HeaderCell(header, s.Quantity, accent, alignRight: true);
-                            HeaderCell(header, s.UnitPrice, accent, alignRight: true);
-                            HeaderCell(header, s.Vat, accent, alignRight: true);
-                            HeaderCell(header, s.AmountHT, accent, alignRight: true);
-                            HeaderCell(header, s.AmountTTC, accent, alignRight: true);
+                            HeaderCellTcd(header, s.Index, accent);
+                            HeaderCellTcd(header, s.Reference, accent);
+                            HeaderCellTcd(header, s.Designation, accent);
+                            HeaderCellTcd(header, s.Quantity, accent, alignRight: true);
+                            HeaderCellTcd(header, s.UnitPrice, accent, alignRight: true);
+                            HeaderCellTcd(header, s.Vat, accent, alignRight: true);
+                            HeaderCellTcd(header, s.AmountHT, accent, alignRight: true);
+                            HeaderCellTcd(header, s.AmountTTC, accent, alignRight: true);
                         });
 
                         foreach (var line in doc.Lines)
@@ -265,8 +342,8 @@ public static class InvoicePdfRenderer
                     {
                         content.Item().EnsureSpace(30).PaddingTop(14).Text(t =>
                         {
-                            t.Span($"{s.AmountInWordsLabel} ").Bold().FontSize(8.5f).FontColor("#334155");
-                            t.Span(doc.AmountInWords).FontSize(8.5f).FontColor("#334155").Italic();
+                            t.Span($"{s.AmountInWordsLabel} ").Bold().FontSize(baseSize).FontColor("#334155");
+                            t.Span(doc.AmountInWords).FontSize(baseSize).FontColor("#334155").Italic();
                         });
                     }
 
@@ -277,31 +354,31 @@ public static class InvoicePdfRenderer
                     {
                         content.Item().EnsureSpace(80).PaddingTop(12).Column(notes =>
                         {
-                            notes.Item().Text(s.ConditionsAndMentions).FontSize(8).Bold().FontColor(accent);
+                            notes.Item().Text(s.ConditionsAndMentions).FontSize(baseSize).Bold().FontColor(accent);
                             if (doc.PaymentConditions is { Length: > 0 })
                             {
-                                notes.Item().PaddingTop(2).Text($"{s.PaymentConditions} : {doc.PaymentConditions}").FontSize(8);
+                                notes.Item().PaddingTop(2).Text($"{s.PaymentConditions} : {doc.PaymentConditions}").FontSize(baseSize);
                             }
 
                             if (doc.Penalties is { Length: > 0 })
                             {
-                                notes.Item().PaddingTop(1).Text($"{s.LatePenalties} : {doc.Penalties}").FontSize(8);
+                                notes.Item().PaddingTop(1).Text($"{s.LatePenalties} : {doc.Penalties}").FontSize(baseSize);
                             }
 
                             if (doc.MentionsSpecifiques is { Length: > 0 })
                             {
-                                notes.Item().PaddingTop(1).Text(doc.MentionsSpecifiques).FontSize(8);
+                                notes.Item().PaddingTop(1).Text(doc.MentionsSpecifiques).FontSize(baseSize);
                             }
 
                             if (doc.Notes is { Length: > 0 })
                             {
-                                notes.Item().PaddingTop(1).Text($"{s.Notes} : {doc.Notes}").FontSize(8);
+                                notes.Item().PaddingTop(1).Text($"{s.Notes} : {doc.Notes}").FontSize(baseSize);
                             }
                         });
                     }
                 });
 
-                page.Footer().DefaultTextStyle(x => x.FontSize(7)).AlignRight().Text(t =>
+                page.Footer().DefaultTextStyle(x => x.FontSize(footerSize)).AlignRight().Text(t =>
                 {
                     t.Span($"{s.Page} ").FontColor("#94A3B8");
                     t.CurrentPageNumber().FontColor("#94A3B8");
@@ -372,47 +449,6 @@ public static class InvoicePdfRenderer
     private static IContainer Cell(IContainer container) =>
         container.Border(0.5f).BorderColor("#E2E8F0").Padding(4);
 
-    private static void HeaderCell(TableDescriptor table, string text, string accent, bool alignRight = false) =>
-        HeaderCellBody(table.Cell(), text, accent, alignRight);
-
-    private static void HeaderCell(TableCellDescriptor table, string text, string accent, bool alignRight = false) =>
-        HeaderCellBody(table.Cell(), text, accent, alignRight);
-
-    private static void HeaderCellBody(IContainer raw, string text, string accent, bool alignRight)
-    {
-        var cell = raw.Element(x => x.Border(0.5f).BorderColor(accent).Background(accent).Padding(4));
-        if (alignRight)
-        {
-            cell = cell.AlignRight();
-        }
-
-        cell.Text(text).FontColor("#FFFFFF").SemiBold().FontSize(8);
-    }
-
-    private static void LineCell(TableDescriptor table, string? text, bool bold = false, bool alignRight = false)
-    {
-        var container = table.Cell().Element(Cell);
-        if (alignRight)
-        {
-            container = container.AlignRight();
-        }
-
-        container.Text(t =>
-        {
-            var span = t.Span(text ?? string.Empty).FontSize(8).FontColor("#334155");
-            if (bold)
-            {
-                span.SemiBold();
-            }
-        });
-    }
-
-    private static void Meta(TableDescriptor table, string label, string value, string accent, bool boldValue = false)
-    {
-        table.Cell().Element(x => x.PaddingVertical(1.5f)).Text(label).FontSize(8).FontColor("#64748B");
-        table.Cell().Element(x => x.PaddingVertical(1.5f)).AlignRight().Text(value).FontSize(8).SemiBold();
-    }
-
     private static void TotalRow(ColumnDescriptor column, string label, string value, string accent)
     {
         column.Item().PaddingTop(2).Table(t =>
@@ -431,5 +467,45 @@ public static class InvoicePdfRenderer
             t.Cell().Element(x => x.PaddingVertical(0.5f)).Text(label).FontSize(7).FontColor("#64748B");
             t.Cell().Element(x => x.PaddingVertical(0.5f)).AlignRight().Text(value).FontSize(7).FontColor("#64748B");
         });
+    }
+
+    /// <summary>
+    /// Résout une famille de police sûre pour QuestPDF. Renvoie <c>null</c> si la police n'est pas
+    /// dans la liste blanche ou si son enregistrement depuis C:\Windows\Fonts échoue, afin de ne
+    /// jamais lever d'exception à la génération (une police non enregistrée fait planter QuestPDF).
+    /// </summary>
+    private static string? ResolvePdfFont(string? family)
+    {
+        if (string.IsNullOrWhiteSpace(family) || !SafeFontFamilies.Contains(family))
+        {
+            return null;
+        }
+
+        if (RegisteredFonts.Contains(family))
+        {
+            return family;
+        }
+
+        if (FontFiles.TryGetValue(family, out var fileName))
+        {
+            var fontsDir = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+            var path = Path.Combine(fontsDir, fileName);
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    FontManager.RegisterFont(stream);
+                    RegisteredFonts.Add(family);
+                    return family;
+                }
+                catch
+                {
+                    // enregistrement impossible : on garde la police par défaut du renderer
+                }
+            }
+        }
+
+        return null;
     }
 }

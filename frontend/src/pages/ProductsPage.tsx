@@ -29,7 +29,7 @@ import type { Product, TVARate, Category, PagedResult } from '../api/types';
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
-import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 import { validateProductReference, validateProductName, validateProductPrice, type ValidationErrors } from '../utils/companyValidation';
 
 const emptyForm = {
@@ -57,8 +57,9 @@ export default function ProductsPage() {
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [reload, setReload] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
+  useCommand(COMMAND_IDS.FOCUS_SEARCH, () => searchRef.current?.focus());
 
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [catForm, setCatForm] = useState({ name: '', description: '' });
@@ -144,6 +145,16 @@ export default function ProductsPage() {
     }
   };
 
+  // Ctrl+S : enregistre le produit uniquement si le formulaire est ouvert.
+  useCommand(COMMAND_IDS.SAVE, () => {
+    if (dialogOpen) void save();
+  });
+  // Entrée : ouvre (édite) le produit sélectionné dans la liste.
+  useCommand(COMMAND_IDS.OPEN_SELECTED, () => {
+    const p = data?.items.find((x) => x.id === selectedId);
+    if (p) openEdit(p);
+  });
+
   const remove = async (p: Product) => {
     try {
       await api.delete(`/products/${p.id}`);
@@ -214,7 +225,23 @@ export default function ProductsPage() {
         />
       </Card>
 
-      <TableContainer component={Card} sx={{ boxShadow: 'none' }}>
+        <TableContainer
+          component={Card}
+          sx={{ boxShadow: 'none' }}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            const items = data?.items ?? [];
+            if (items.length === 0) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const idx = items.findIndex((x) => x.id === selectedId);
+              let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+              if (idx === -1) next = 0;
+              next = Math.max(0, Math.min(items.length - 1, next));
+              setSelectedId(items[next].id);
+            }
+          }}
+        >
         <Table size="medium">
           <TableHead>
             <TableRow>
@@ -230,7 +257,7 @@ export default function ProductsPage() {
           </TableHead>
           <TableBody>
             {data?.items.map((p) => (
-              <TableRow key={p.id} hover>
+              <TableRow key={p.id} hover selected={selectedId === p.id} onClick={() => setSelectedId(p.id)}>
                 <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{p.reference}</TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>

@@ -30,7 +30,7 @@ import { api, extractError } from '../api/client';
 import type { Company, TVARate } from '../api/types';
 import PageHeader from '../components/PageHeader';
 import { useUpdateStore } from '../stores/updateStore';
-import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 import {
   validateCompanyForm,
   validateNIF,
@@ -319,7 +319,7 @@ export default function CompanyPage() {
     }
   };
 
-  useShortcutEvent(SHORTCUT_EVENTS.SAVE, () => void save());
+  useCommand(COMMAND_IDS.SAVE, () => void save());
 
   if (loading) {
     return (

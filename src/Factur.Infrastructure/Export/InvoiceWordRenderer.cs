@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using Factur.Domain;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Drawing.Pictures;
 using DocumentFormat.OpenXml.Drawing.Wordprocessing;
@@ -24,9 +25,15 @@ public static class InvoiceWordRenderer
     private const string TextColor = "1F2937";
     private const string MutedColor = "64748B";
 
-    public static byte[] Render(ExportDocument doc)
+    public static byte[] Render(ExportDocument doc, TypographyOptions? typography = null)
     {
         var s = doc.Strings;
+        var typo = typography ?? new TypographyOptions();
+        var font = typo.FontFamily;
+        var headerSz = (int)Math.Round(typo.HeaderFontSize * 2);
+        var tableSz = (int)Math.Round(typo.TableFontSize * 2);
+        var baseSz = (int)Math.Round(typo.BaseFontSize * 2);
+        var footerSz = (int)Math.Round(typo.FooterFontSize * 2);
 
         using var ms = new MemoryStream();
         using (var word = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document))
@@ -42,14 +49,14 @@ public static class InvoiceWordRenderer
             var headerPart = main.AddNewPart<HeaderPart>();
             var header = new Header(new WordParagraph(new ParagraphProperties(new ParagraphStyleId { Val = "Header" })));
             headerPart.Header = header;
-            header.Append(BuildHeaderParagraph(doc, headerPart));
+            header.Append(BuildHeaderParagraph(doc, headerPart, headerSz, font));
             sectPr.AppendChild(new HeaderReference { Type = HeaderFooterValues.Default, Id = "rIdHeader" });
             main.AddPart(headerPart);
 
             // ---- pied de page
             var footerPart = main.AddNewPart<FooterPart>();
             var footer = new Footer();
-            footer.Append(BuildFooterParagraph(doc));
+            footer.Append(BuildFooterParagraph(doc, footerSz, font));
             footerPart.Footer = footer;
             sectPr.AppendChild(new FooterReference { Type = HeaderFooterValues.Default, Id = "rIdFooter" });
             main.AddPart(footerPart);
@@ -64,11 +71,11 @@ public static class InvoiceWordRenderer
             body.AppendChild(sectPr);
 
             // ---- corps
-            AppendClientBlock(body, doc);
-            AppendLinesTable(body, doc);
-            AppendVatAndTotals(body, doc);
-            AppendAmountInWords(body, doc);
-            AppendNotes(body, doc);
+            AppendClientBlock(body, doc, baseSz, font);
+            AppendLinesTable(body, doc, headerSz, tableSz, font);
+            AppendVatAndTotals(body, doc, headerSz, tableSz, baseSz, font);
+            AppendAmountInWords(body, doc, baseSz, font);
+            AppendNotes(body, doc, baseSz, font);
             AppendBottomSpacer(body);
         }
 
@@ -77,7 +84,7 @@ public static class InvoiceWordRenderer
 
     // ---------------------------------------------------------------- header / footer
 
-    private static WordParagraph BuildHeaderParagraph(ExportDocument doc, HeaderPart headerPart)
+    private static WordParagraph BuildHeaderParagraph(ExportDocument doc, HeaderPart headerPart, int headerSz, string? font)
     {
         var p = new WordParagraph();
         p.AppendChild(new ParagraphProperties(new SpacingBetweenLines { After = "0" }));
@@ -89,12 +96,12 @@ public static class InvoiceWordRenderer
             imagePart.FeedData(stream);
 
             p.AppendChild(new WordRun(ImageRun("rIdLogo", 500000, 500000)));
-            p.AppendChild(TextRun("   ", size: 16));
+            p.AppendChild(TextRun("   ", size: 16, font: font));
         }
 
-        p.AppendChild(TextRun(doc.Company.Name, bold: true, size: 28, color: Accent));
-        p.AppendChild(TextRun("   ", size: 16));
-        p.AppendChild(TextRun($"N° {doc.InvoiceNumber}", bold: true, size: 20, color: Accent));
+        p.AppendChild(TextRun(doc.Company.Name, bold: true, size: headerSz, color: Accent, font: font));
+        p.AppendChild(TextRun("   ", size: 16, font: font));
+        p.AppendChild(TextRun($"N° {doc.InvoiceNumber}", bold: true, size: headerSz, color: Accent, font: font));
 
         var contact = string.Join("   ", new[]
         {
@@ -106,7 +113,7 @@ public static class InvoiceWordRenderer
         {
             var contactRun = new WordRun(
                 new RunProperties(
-                    new RunFonts { Ascii = "Calibri", HighAnsi = "Calibri" },
+                    new RunFonts { Ascii = font ?? "Calibri", HighAnsi = font ?? "Calibri" },
                     new WordColor { Val = MutedColor },
                     new FontSize { Val = "16" }),
                 new Break(),
@@ -117,25 +124,25 @@ public static class InvoiceWordRenderer
         return p;
     }
 
-    private static WordParagraph BuildFooterParagraph(ExportDocument doc)
+    private static WordParagraph BuildFooterParagraph(ExportDocument doc, int footerSz, string? font)
     {
         var s = doc.Strings;
         var p = new WordParagraph(new ParagraphProperties(new Justification { Val = JustificationValues.Right }));
 
-        p.Append(TextRun($"{s.Page} ", size: 14, color: MutedColor));
-        p.Append(FieldRun(" PAGE "));
-        p.Append(TextRun($" {s.Of} ", size: 14, color: MutedColor));
-        p.Append(FieldRun(" NUMPAGES "));
+        p.Append(TextRun($"{s.Page} ", size: footerSz, color: MutedColor, font: font));
+        p.Append(FieldRun(" PAGE ", footerSz, font));
+        p.Append(TextRun($" {s.Of} ", size: footerSz, color: MutedColor, font: font));
+        p.Append(FieldRun(" NUMPAGES ", footerSz, font));
 
         return p;
     }
 
-    private static WordRun FieldRun(string instruction)
+    private static WordRun FieldRun(string instruction, int footerSz, string? font)
     {
         var props = new RunProperties(
-            new RunFonts { Ascii = "Calibri", HighAnsi = "Calibri" },
+            new RunFonts { Ascii = font ?? "Calibri", HighAnsi = font ?? "Calibri" },
             new WordColor { Val = MutedColor },
-            new FontSize { Val = "14" });
+            new FontSize { Val = footerSz.ToString() });
         var WordRun = new WordRun();
         WordRun.Append(props);
         WordRun.Append(new FieldChar { FieldCharType = FieldCharValues.Begin });
@@ -181,21 +188,21 @@ public static class InvoiceWordRenderer
 
     // ---------------------------------------------------------------- corps
 
-    private static void AppendClientBlock(Body body, ExportDocument doc)
+    private static void AppendClientBlock(Body body, ExportDocument doc, int baseSz, string? font)
     {
         var s = doc.Strings;
         body.AppendChild(Spacer(80));
-        body.AppendChild(LabelParagraph(s.BillTo, Accent));
-        body.AppendChild(ParagraphText(doc.Client.Name, bold: true, size: 24));
+        body.AppendChild(LabelParagraph(s.BillTo, Accent, font));
+        body.AppendChild(ParagraphText(doc.Client.Name, bold: true, size: baseSz, font: font));
         if (!string.IsNullOrWhiteSpace(doc.Client.Address))
         {
-            body.AppendChild(ParagraphText(doc.Client.Address, size: 20));
+            body.AppendChild(ParagraphText(doc.Client.Address, size: baseSz, font: font));
         }
 
         var info = PartyFiscalLine(doc.Client);
         if (!string.IsNullOrWhiteSpace(info))
         {
-            body.AppendChild(ParagraphText(info, size: 16, color: MutedColor));
+            body.AppendChild(ParagraphText(info, size: baseSz, color: MutedColor, font: font));
         }
 
         body.AppendChild(Spacer(120));
@@ -226,8 +233,8 @@ public static class InvoiceWordRenderer
         foreach (var (label, value) in meta)
         {
             var tr = new TableRow();
-            tr.Append(SimpleCell(label, width: 1600, bold: false, color: MutedColor, size: 18));
-            tr.Append(SimpleCell(value, width: 3600, bold: true, size: 18));
+            tr.Append(SimpleCell(label, width: 1600, bold: false, color: MutedColor, size: baseSz, font: font));
+            tr.Append(SimpleCell(value, width: 3600, bold: true, size: baseSz, font: font));
             metaTable.Append(tr);
         }
 
@@ -235,7 +242,7 @@ public static class InvoiceWordRenderer
         body.AppendChild(Spacer(160));
     }
 
-    private static void AppendLinesTable(Body body, ExportDocument doc)
+    private static void AppendLinesTable(Body body, ExportDocument doc, int headerSz, int tableSz, string? font)
     {
         var s = doc.Strings;
         var table = new Table();
@@ -258,7 +265,7 @@ public static class InvoiceWordRenderer
         var align = new[] { Align.Center, Align.Left, Align.Left, Align.Right, Align.Right, Align.Right, Align.Right, Align.Right };
         for (var i = 0; i < headers.Length; i++)
         {
-            headerRow.Append(SimpleCell(headers[i], widths[i], bold: true, color: "#FFFFFF", size: 18, fill: Accent, align: align[i]));
+            headerRow.Append(SimpleCell(headers[i], widths[i], bold: true, color: "#FFFFFF", size: headerSz, fill: Accent, align: align[i], font: font));
         }
 
         table.Append(headerRow);
@@ -266,14 +273,14 @@ public static class InvoiceWordRenderer
         foreach (var line in doc.Lines)
         {
             var tr = new TableRow();
-            tr.Append(SimpleCell(line.Index.ToString(), widths[0], bold: true, size: 18, align: Align.Center));
-            tr.Append(SimpleCell(line.Reference, widths[1], size: 18));
-            tr.Append(SimpleCell(line.Designation, widths[2], size: 18));
-            tr.Append(SimpleCell(Qty(line.Quantity), widths[3], size: 18, align: Align.Right));
-            tr.Append(SimpleCell(Money(line.UnitPriceHT), widths[4], size: 18, align: Align.Right));
-            tr.Append(SimpleCell(line.VatLabel, widths[5], size: 18, align: Align.Right));
-            tr.Append(SimpleCell(Money(line.TotalHT), widths[6], size: 18, align: Align.Right));
-            tr.Append(SimpleCell(Money(line.TotalTTC), widths[7], size: 18, align: Align.Right));
+            tr.Append(SimpleCell(line.Index.ToString(), widths[0], bold: true, size: tableSz, align: Align.Center, font: font));
+            tr.Append(SimpleCell(line.Reference, widths[1], size: tableSz, font: font));
+            tr.Append(SimpleCell(line.Designation, widths[2], size: tableSz, font: font));
+            tr.Append(SimpleCell(Qty(line.Quantity), widths[3], size: tableSz, align: Align.Right, font: font));
+            tr.Append(SimpleCell(Money(line.UnitPriceHT), widths[4], size: tableSz, align: Align.Right, font: font));
+            tr.Append(SimpleCell(line.VatLabel, widths[5], size: tableSz, align: Align.Right, font: font));
+            tr.Append(SimpleCell(Money(line.TotalHT), widths[6], size: tableSz, align: Align.Right, font: font));
+            tr.Append(SimpleCell(Money(line.TotalTTC), widths[7], size: tableSz, align: Align.Right, font: font));
             table.Append(tr);
         }
 
@@ -281,13 +288,13 @@ public static class InvoiceWordRenderer
         body.AppendChild(Spacer(120));
     }
 
-    private static void AppendVatAndTotals(Body body, ExportDocument doc)
+    private static void AppendVatAndTotals(Body body, ExportDocument doc, int headerSz, int tableSz, int baseSz, string? font)
     {
         var s = doc.Strings;
 
         if (doc.VatBreakdowns.Count > 0)
         {
-            body.AppendChild(LabelParagraph(s.VatSummary, Accent));
+            body.AppendChild(LabelParagraph(s.VatSummary, Accent, font));
             body.AppendChild(Spacer(40));
             var vatTable = new Table();
             vatTable.AppendChild(new TableProperties(new TableLayout { Type = TableLayoutValues.Fixed })
@@ -303,19 +310,19 @@ public static class InvoiceWordRenderer
             });
 
             var hdr = new TableRow(new TableRowProperties(new TableHeader()));
-            hdr.Append(SimpleCell(s.Rate, 900, bold: true, color: "#FFFFFF", size: 16, fill: Accent));
-            hdr.Append(SimpleCell(s.Base, 1250, bold: true, color: "#FFFFFF", size: 16, fill: Accent, align: Align.Right));
-            hdr.Append(SimpleCell(s.VatAmount, 1250, bold: true, color: "#FFFFFF", size: 16, fill: Accent, align: Align.Right));
-            hdr.Append(SimpleCell(s.Ttc, 1200, bold: true, color: "#FFFFFF", size: 16, fill: Accent, align: Align.Right));
+            hdr.Append(SimpleCell(s.Rate, 900, bold: true, color: "#FFFFFF", size: headerSz, fill: Accent, font: font));
+            hdr.Append(SimpleCell(s.Base, 1250, bold: true, color: "#FFFFFF", size: headerSz, fill: Accent, align: Align.Right, font: font));
+            hdr.Append(SimpleCell(s.VatAmount, 1250, bold: true, color: "#FFFFFF", size: headerSz, fill: Accent, align: Align.Right, font: font));
+            hdr.Append(SimpleCell(s.Ttc, 1200, bold: true, color: "#FFFFFF", size: headerSz, fill: Accent, align: Align.Right, font: font));
             vatTable.Append(hdr);
 
             foreach (var b in doc.VatBreakdowns)
             {
                 var tr = new TableRow();
-                tr.Append(SimpleCell(b.Label, 900, size: 18));
-                tr.Append(SimpleCell(Money(b.BaseHT), 1250, size: 18, align: Align.Right));
-                tr.Append(SimpleCell(Money(b.VatAmount), 1250, size: 18, align: Align.Right));
-                tr.Append(SimpleCell(Money(b.Ttc), 1200, size: 18, align: Align.Right));
+                tr.Append(SimpleCell(b.Label, 900, size: tableSz, font: font));
+                tr.Append(SimpleCell(Money(b.BaseHT), 1250, size: tableSz, align: Align.Right, font: font));
+                tr.Append(SimpleCell(Money(b.VatAmount), 1250, size: tableSz, align: Align.Right, font: font));
+                tr.Append(SimpleCell(Money(b.Ttc), 1200, size: tableSz, align: Align.Right, font: font));
                 vatTable.Append(tr);
             }
 
@@ -370,15 +377,15 @@ public static class InvoiceWordRenderer
         foreach (var (label, value, bold, fill) in rows)
         {
             var tr = new TableRow();
-            tr.Append(SimpleCell(label, 3100, bold: bold, size: 20, fill: fill, color: bold && fill != null ? "#FFFFFF" : TextColor));
-            tr.Append(SimpleCell(value, 1500, bold: bold, size: 20, fill: fill, color: bold && fill != null ? "#FFFFFF" : TextColor, align: Align.Right));
+            tr.Append(SimpleCell(label, 3100, bold: bold, size: tableSz, fill: fill, color: bold && fill != null ? "#FFFFFF" : TextColor, font: font));
+            tr.Append(SimpleCell(value, 1500, bold: bold, size: tableSz, fill: fill, color: bold && fill != null ? "#FFFFFF" : TextColor, align: Align.Right, font: font));
             totalTable.Append(tr);
         }
 
         body.AppendChild(totalTable);
     }
 
-    private static void AppendAmountInWords(Body body, ExportDocument doc)
+    private static void AppendAmountInWords(Body body, ExportDocument doc, int baseSz, string? font)
     {
         if (string.IsNullOrWhiteSpace(doc.AmountInWords))
         {
@@ -387,12 +394,12 @@ public static class InvoiceWordRenderer
 
         body.AppendChild(Spacer(200));
         var p = new WordParagraph(new ParagraphProperties(new SpacingBetweenLines { After = "0" }));
-        p.Append(TextRun($"{doc.Strings.AmountInWordsLabel} ", bold: true, size: 18));
-        p.Append(TextRun(doc.AmountInWords, italic: true, size: 18));
+        p.Append(TextRun($"{doc.Strings.AmountInWordsLabel} ", bold: true, size: baseSz, font: font));
+        p.Append(TextRun(doc.AmountInWords, italic: true, size: baseSz, font: font));
         body.AppendChild(p);
     }
 
-    private static void AppendNotes(Body body, ExportDocument doc)
+    private static void AppendNotes(Body body, ExportDocument doc, int baseSz, string? font)
     {
         var s = doc.Strings;
         var hasNotes = doc.PaymentConditions is { Length: > 0 } || doc.Penalties is { Length: > 0 }
@@ -403,25 +410,25 @@ public static class InvoiceWordRenderer
         }
 
         body.AppendChild(Spacer(200));
-        body.AppendChild(LabelParagraph(s.ConditionsAndMentions, Accent));
+        body.AppendChild(LabelParagraph(s.ConditionsAndMentions, Accent, font));
         if (doc.PaymentConditions is { Length: > 0 })
         {
-            body.AppendChild(ParagraphText($"{s.PaymentConditions} : {doc.PaymentConditions}", size: 18));
+            body.AppendChild(ParagraphText($"{s.PaymentConditions} : {doc.PaymentConditions}", size: baseSz, font: font));
         }
 
         if (doc.Penalties is { Length: > 0 })
         {
-            body.AppendChild(ParagraphText($"{s.LatePenalties} : {doc.Penalties}", size: 18));
+            body.AppendChild(ParagraphText($"{s.LatePenalties} : {doc.Penalties}", size: baseSz, font: font));
         }
 
         if (doc.MentionsSpecifiques is { Length: > 0 })
         {
-            body.AppendChild(ParagraphText(doc.MentionsSpecifiques, size: 18));
+            body.AppendChild(ParagraphText(doc.MentionsSpecifiques, size: baseSz, font: font));
         }
 
         if (doc.Notes is { Length: > 0 })
         {
-            body.AppendChild(ParagraphText($"{s.Notes} : {doc.Notes}", size: 18));
+            body.AppendChild(ParagraphText($"{s.Notes} : {doc.Notes}", size: baseSz, font: font));
         }
     }
 
@@ -467,19 +474,19 @@ public static class InvoiceWordRenderer
     private static void AppendBottomSpacer(Body body) =>
         body.AppendChild(new WordParagraph(new ParagraphProperties(new SpacingBetweenLines { After = "200" })));
 
-    private static WordParagraph LabelParagraph(string text, string color) =>
-        ParagraphText(text, bold: true, size: 20, color: color);
+    private static WordParagraph LabelParagraph(string text, string color, string? font = null) =>
+        ParagraphText(text, bold: true, size: null, color: color, italic: false, font: font);
 
-    private static WordParagraph ParagraphText(string text, bool bold = false, int? size = null, string? color = null, bool italic = false)
+    private static WordParagraph ParagraphText(string text, bool bold = false, int? size = null, string? color = null, bool italic = false, string? font = null)
     {
         var p = new WordParagraph(new ParagraphProperties(new SpacingBetweenLines { After = "40" }));
-        p.Append(TextRun(text, bold: bold, size: size, color: color, italic: italic));
+        p.Append(TextRun(text, bold: bold, size: size, color: color, italic: italic, font: font));
         return p;
     }
 
-    private static WordRun TextRun(string text, bool bold = false, bool italic = false, int? size = null, string? color = null)
+    private static WordRun TextRun(string text, bool bold = false, bool italic = false, int? size = null, string? color = null, string? font = null)
     {
-        var props = new RunProperties(new RunFonts { Ascii = "Calibri", HighAnsi = "Calibri" });
+        var props = new RunProperties(new RunFonts { Ascii = font ?? "Calibri", HighAnsi = font ?? "Calibri" });
         if (color is not null)
         {
             props.Append(new WordColor { Val = color });
@@ -510,7 +517,7 @@ public static class InvoiceWordRenderer
         Right,
     }
 
-    private static WordCell SimpleCell(string text, int width, bool bold = false, string? color = null, int size = 20, string? fill = null, Align align = Align.Left)
+    private static WordCell SimpleCell(string text, int width, bool bold = false, string? color = null, int size = 20, string? fill = null, Align align = Align.Left, string? font = null)
     {
         var cellProps = new TableCellProperties(
             new TableCellWidth { Width = width.ToString(), Type = TableWidthUnitValues.Dxa })
@@ -532,7 +539,7 @@ public static class InvoiceWordRenderer
                 _ => JustificationValues.Left,
             } },
         });
-        WordParagraph.Append(TextRun(text, bold: bold, size: size, color: color));
+        WordParagraph.Append(TextRun(text, bold: bold, size: size, color: color, font: font));
 
         return new WordCell(cellProps, WordParagraph);
     }

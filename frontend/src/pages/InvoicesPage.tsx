@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Eye, Filter, Plus, Search, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, extractError } from '../api/client';
 import type { Client, InvoiceStatus, PagedResult, InvoiceSummary } from '../api/types';
@@ -27,30 +27,53 @@ import PageHeader from '../components/PageHeader';
 import SearchSelect from '../components/SearchSelect';
 import StatusBadge from '../components/StatusBadge';
 import TablePaginationBar from '../components/TablePaginationBar';
-import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<PagedResult<InvoiceSummary> | null>(null);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') ?? '');
+  const [status, setStatus] = useState(searchParams.get('status') ?? '');
   const [client, setClient] = useState<Client | null>(null);
-  const [date, setDate] = useState('');
+  const [clientId, setClientId] = useState(searchParams.get('clientId') ?? '');
+  const [date, setDate] = useState(searchParams.get('from') ?? '');
+  const [to, setTo] = useState(searchParams.get('to') ?? '');
+  const [overdue, setOverdue] = useState(searchParams.get('overdue') === 'true');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(7);
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
+  useCommand(COMMAND_IDS.FOCUS_SEARCH, () => searchRef.current?.focus());
+  // Entrée : ouvre la facture sélectionnée dans la liste.
+  useCommand(COMMAND_IDS.OPEN_SELECTED, () => {
+    const inv = data?.items.find((x) => x.id === selectedId);
+    if (inv) navigate(`/invoices/${inv.id}`);
+  });
+
+  // Pré-remplit le filtre client depuis l'URL (navigation depuis les rapports).
+  useEffect(() => {
+    if (clientId && !client) {
+      api
+        .get<Client>(`/clients/${clientId}`)
+        .then((r) => setClient(r.data))
+        .catch(() => {});
+    }
+  }, [clientId, client]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (status) params.set('status', status);
-    if (client) params.set('clientId', client.id);
+    const cid = client?.id ?? (clientId || undefined);
+    if (cid) params.set('clientId', cid);
     if (date) params.set('from', date);
+    if (to) params.set('to', to);
+    if (overdue) params.set('overdue', 'true');
     params.set('page', String(page + 1));
     params.set('pageSize', String(pageSize));
     try {
@@ -60,19 +83,22 @@ export default function InvoicesPage() {
     } catch (err) {
       setLoadError(extractError(err));
     }
-  }, [search, status, client, date, page, pageSize]);
+  }, [search, status, client, clientId, date, to, overdue, page, pageSize]);
 
   useEffect(() => {
     void load();
   }, [load, reload]);
 
-  const hasFilters = Boolean(search || status || client || date);
+  const hasFilters = Boolean(search || status || client || clientId || date || to || overdue);
 
   const resetFilters = () => {
     setSearch('');
     setStatus('');
     setClient(null);
+    setClientId('');
     setDate('');
+    setTo('');
+    setOverdue(false);
     setPage(0);
   };
 
@@ -119,6 +145,7 @@ export default function InvoicesPage() {
               value={client}
               onChange={(val) => {
                 setClient(val);
+                setClientId('');
                 setPage(0);
               }}
               getOptionLabel={(c) => c.displayName}
@@ -156,7 +183,23 @@ export default function InvoicesPage() {
         </Alert>
       )}
 
-      <TableContainer component={Card} sx={{ boxShadow: 'none' }}>
+      <TableContainer
+        component={Card}
+        sx={{ boxShadow: 'none' }}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const items = data?.items ?? [];
+          if (items.length === 0) return;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const idx = items.findIndex((x) => x.id === selectedId);
+            let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+            if (idx === -1) next = 0;
+            next = Math.max(0, Math.min(items.length - 1, next));
+            setSelectedId(items[next].id);
+          }
+        }}
+      >
         <Table size="medium">
           <TableHead>
             <TableRow>
@@ -175,7 +218,7 @@ export default function InvoicesPage() {
           </TableHead>
           <TableBody>
             {data?.items.map((inv) => (
-              <TableRow key={inv.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>
+              <TableRow key={inv.id} hover selected={selectedId === inv.id} sx={{ cursor: 'pointer' }} onClick={() => { setSelectedId(inv.id); navigate(`/invoices/${inv.id}`); }}>
                 <TableCell sx={{ fontWeight: 600 }}>{inv.invoiceNumber}</TableCell>
                 <TableCell>{inv.clientName}</TableCell>
                 <TableCell>{formatDate(inv.invoiceDate)}</TableCell>

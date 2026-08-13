@@ -30,6 +30,27 @@ public class ReportsController : ControllerBase
         return Ok(await _reportService.GetMonthlyInvoicesPagedAsync(year, month, page, pageSize, ct));
     }
 
+    [HttpGet("summary")]
+    public async Task<ActionResult<MonthlyReportDto>> Summary([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+    {
+        var start = from ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var end = to ?? start.AddMonths(1).AddDays(-1);
+        return Ok(await _reportService.GetPeriodReportAsync(start, end, ct));
+    }
+
+    [HttpGet("range/invoices")]
+    public async Task<ActionResult<PagedResult<InvoiceSummaryDto>>> RangeInvoices(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var start = from ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var end = to ?? start.AddMonths(1).AddDays(-1);
+        return Ok(await _reportService.GetPeriodInvoicesPagedAsync(start, end, page, pageSize, ct));
+    }
+
     [HttpGet("monthly/export/pdf")]
     public async Task<IActionResult> MonthlyPdf([FromQuery] int year, [FromQuery] int month, [FromQuery] string? lang, CancellationToken ct)
     {

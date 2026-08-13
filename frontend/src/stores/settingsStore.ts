@@ -21,6 +21,13 @@ const defaultSettings: AppSettings = {
   backupRetentionCount: 5,
   backupLocation: '',
   splashEnabled: true,
+  appFontFamily: 'Inter',
+  interfaceFontSize: 'medium',
+  docFontFamily: 'Inter',
+  docBaseFontSize: 11,
+  docTableFontSize: 9,
+  docHeaderFontSize: 13,
+  docFooterFontSize: 9,
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -87,6 +94,13 @@ function applySettings(settings: AppSettings) {
   } else {
     document.documentElement.classList.remove('dark');
   }
+
+  // Interface typography (program UI only — never affects exports).
+  const fontFamily = settings.appFontFamily || 'Inter';
+  const fontSize =
+    settings.interfaceFontSize === 'small' ? 13 : settings.interfaceFontSize === 'large' ? 16 : 14;
+  document.documentElement.style.setProperty('--moha-app-font', `'${fontFamily}', sans-serif`);
+  document.documentElement.style.setProperty('--moha-app-font-size', `${fontSize}px`);
 }
 
 export function resolveTheme(preference: string): 'light' | 'dark' {

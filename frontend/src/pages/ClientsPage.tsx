@@ -44,7 +44,7 @@ import type { Client, ClientType, PaymentMethod, PagedResult } from '../api/type
 import { formatCurrency } from '../utils/format';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
-import { SHORTCUT_EVENTS, useShortcutEvent } from '../utils/shortcuts';
+import { COMMAND_IDS, useCommand } from '../utils/shortcuts';
 import { getCommunes, getPostalCodes, getWilayas } from '../data/algeriaLocations';
 import type { ClientForm, FieldMark } from '../utils/clientValidation';
 import { markFor, operatorOf, validateClientForm } from '../utils/clientValidation';
@@ -90,8 +90,12 @@ export default function ClientsPage() {
   const [alert, setAlert] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
   const [reload, setReload] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useShortcutEvent(SHORTCUT_EVENTS.FOCUS_SEARCH, () => searchRef.current?.focus());
+  useCommand(COMMAND_IDS.FOCUS_SEARCH, () => searchRef.current?.focus());
+  useCommand(COMMAND_IDS.OPEN_SELECTED, () => {
+    if (selectedId) navigate(`/clients/${selectedId}`);
+  });
 
   // Delete-flow state (prevents double submission + shows a confirm step)
   const [confirmClient, setConfirmClient] = useState<Client | null>(null);
@@ -169,6 +173,11 @@ export default function ClientsPage() {
       setError(extractError(err));
     }
   };
+
+  // Ctrl+S : enregistre le client uniquement si le formulaire est ouvert.
+  useCommand(COMMAND_IDS.SAVE, () => {
+    if (dialogOpen) void save();
+  });
 
   const confirmDelete = (client: Client) => {
     setAlert(null);
@@ -256,7 +265,23 @@ export default function ClientsPage() {
         />
       </Card>
 
-      <TableContainer component={Card} sx={{ boxShadow: 'none' }}>
+      <TableContainer
+        component={Card}
+        sx={{ boxShadow: 'none' }}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const items = data?.items ?? [];
+          if (items.length === 0) return;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const idx = items.findIndex((x) => x.id === selectedId);
+            let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+            if (idx === -1) next = 0;
+            next = Math.max(0, Math.min(items.length - 1, next));
+            setSelectedId(items[next].id);
+          }
+        }}
+      >
         <Table size="medium">
           <TableHead>
             <TableRow>
@@ -272,7 +297,16 @@ export default function ClientsPage() {
           </TableHead>
           <TableBody>
             {data?.items.map((c) => (
-              <TableRow key={c.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/clients/${c.id}`)}>
+              <TableRow
+                key={c.id}
+                hover
+                selected={selectedId === c.id}
+                sx={{ cursor: 'pointer' }}
+                onClick={() => {
+                  setSelectedId(c.id);
+                  navigate(`/clients/${c.id}`);
+                }}
+              >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                     <Box
