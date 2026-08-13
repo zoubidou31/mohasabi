@@ -43,7 +43,7 @@ jobs:
           } else {
             $version = $tag.TrimStart('v')
           }
-          $notes = Get-Content -Raw -Path RELEASE_NOTES.md
+          $notes = Get-Content -Raw -Encoding UTF8 -Path RELEASE_NOTES.md
           ./build-release.ps1 -GitHubRepo "zoubidou31/mohasabi" -Version $version -ReleaseNotes $notes
 
       - name: Publish GitHub Release
